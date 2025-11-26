@@ -1,0 +1,80 @@
+# Ames Housing Price Prediction - Configuration File
+
+# Data Paths
+data:
+  train_path: "data/train.csv"
+  test_path: "data/test.csv"
+  submission_path: "results/submissions/submission.csv"
+
+# Preprocessing
+preprocessing:
+  test_size: 0.2
+  random_state: 42
+  remove_outliers: true
+  
+# Feature Engineering
+feature_engineering:
+  boxcox_lambda: 0.15
+  n_top_features: 50
+  create_new_features: true
+
+# XGBoost Parameters
+xgboost:
+  colsample_bytree: 0.89407
+  gamma: 0.0012
+  learning_rate: 0.063732
+  max_depth: 4
+  n_estimators: 222
+  subsample: 0.5213
+  reg_alpha: 0.4640
+  reg_lambda: 0.8571
+  random_state: 42
+  nthread: -1
+
+# LightGBM Parameters
+lightgbm:
+  objective: "regression"
+  num_leaves: 5
+  learning_rate: 0.05
+  n_estimators: 720
+  max_bin: 55
+  bagging_fraction: 0.8
+  bagging_freq: 5
+  feature_fraction: 0.2319
+  min_data_in_leaf: 6
+  min_sum_hessian_in_leaf: 11
+
+# KAN Model Parameters
+kan:
+  width: [null, 16, 8, 1]  # Input dimension will be set dynamically
+  grid: 5
+  k: 4
+  seed: 42
+  optimizer: "LBFGS"
+  steps: 222
+  learning_rate: 0.063
+  lamb: 0.0012
+  lamb_entropy: 0.8
+  update_grid: false
+
+# Optuna Optimization
+optuna:
+  n_trials: 250
+  n_splits: 3
+  direction: "minimize"
+  study_name: "ames_housing_optimization"
+
+# Evaluation Metrics
+metrics:
+  primary: "rmsle"
+  secondary: "r2_score"
+  use_cross_validation: true
+  cv_folds: 5
+
+# Visualization
+visualization:
+  figure_size: [12, 8]
+  dpi: 300
+  style: "seaborn-v0_8"
+  save_format: "png"
+

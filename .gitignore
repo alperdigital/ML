@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Data files (if too large)
+# Uncomment if you don't want to commit data
+# data/*.csv
+# data/*.pkl
+
+# Model files
+*.pth
+*.pkl
+*.h5
+*.hdf5
+*.joblib
+*.model
+
+# Results
+results/models/*
+results/visualizations/*
+results/submissions/*
+!results/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Optuna
+optuna_study.pk1
+*.db
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
