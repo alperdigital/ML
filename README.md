@@ -1,4 +1,4 @@
-> **V2 branch:** The new leakage-safe benchmark is in [ames-v2/README.md](ames-v2/README.md). The original V1 README follows for historical reference; its scores are not reproduced V2 results.
+> **V2 branch:** The new leakage-safe benchmark is in [ames-v2/README.md](ames-v2/README.md). See the [same-split V1 vs V2 comparison](ames-v2/README.md#v1-vs-v2--same-split-comparison-26-november-2026): the CV-selected V2 CatBoost reduces holdout RMSLE by 10.74% compared with the CV-selected V1 LightGBM, while V1 retains higher holdout R². The original V1 README follows for historical reference; its scores are not reproduced V2 results.
 
 <div align="center">
 
