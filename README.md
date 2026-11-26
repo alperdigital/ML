@@ -1,8 +1,26 @@
-# Ames Housing V3
+# Ames Housing · Üç sürümde ev fiyatı tahmini
 
-**Recommended version: V3.** On the same 1,168 development homes in two repeats of nested five-fold validation, V2 scored 0.14102 RMSLE and $16,062 MAE. V3 scored 0.11577 RMSLE and $12,871 MAE.
+Eksik konut bilgilerinden satış fiyatı tahminiyle başlayan bu proje, üç sürüm boyunca aynı soruya döndü. Bir değişikliğin işe yaradığını hangi evlerde, nasıl ölçebiliriz? [Etkileşimli proje sunumunu aç](https://alperdigital.github.io/ML/)
 
-The [V3 report](ames-v3/README.md) documents the measured difference, uncertainty, neighborhood errors, 2010 forward-year check, historical holdout and a working single-house prediction command. The [V2 report](ames-v2/README.md) preserves the prior benchmark.
+## V1, V2 ve V3 aynı 292 evde
+
+Ames'teki aynı 292 satış için V3'ün ortalama mutlak fiyat hatası **12.764,41 dolar** oldu. Ev başına hata, V1'e göre **2.751,06 dolar (%17,73)** ve V2'ye göre **2.229,10 dolar (%14,87)** azaldı.
+
+| Sürüm · seçilen model | RMSLE ↓ | Önceki sürüme göre RMSLE | MAE ↓ (USD) | Önceki sürüme göre MAE (USD) | R² ↑ | Önceki sürüme göre R² |
+|---|---:|---:|---:|---:|---:|---:|
+| V1 · LightGBM | 0,13832 | — | 15.515,46 | — | 0,92181 | — |
+| V2 · CatBoost | 0,12346 | −%10,74 | 14.993,51 | −521,96 | 0,89969 | −0,02211 |
+| V3 · TabPFNv2 | **0,11810** | −%4,34 | **12.764,41** | **−2.229,10** | **0,94024** | **+0,04055** |
+
+RMSLE oransal fiyat sapmasını logaritmik ölçekte özetler. MAE her evdeki dolar hatasının mutlak değerlerinin ortalamasıdır. R², fiyatlardaki değişkenliğin ne kadarını modelin açıkladığını gösterir ve büyük dolar hatalarına daha duyarlıdır. V2'de ortalama hata azalırken bazı pahalı evlerde sapma büyüdü. Örneğin 755.000 dolara satılan 692 numaralı eve V1 617.048 dolar, V2 530.960 dolar, V3 ise 643.321 dolar biçti. V3, 292 ev birlikte değerlendirildiğinde üç ölçütte de en iyi sonucu verdi.
+
+**Karşılaştırma yöntemi.** Modelleri geliştirme verisindeki seçim belirledi. V1 için çalışan iki ağaç modeli arasından seçilen LightGBM, V2 için model başına 20 Optuna denemesi ve beş katlı doğrulamayla yayımlanan CatBoost, V3 için dondurulan TabPFNv2 kullanıldı. V3 raporunda üç iç katla yeniden seçilen V2 karşılaştırıcısının RMSLE'si 0,12425'tir. Buradaki 0,12346 özgün V2 sürümüne aittir.
+
+1.460 kayıttan sabit tohum 42 ile ayrılan 1.168 geliştirme kaydı üç sürümde ortaktır. Adil karşılaştırma için V1'in özgün model ayarları korundu, eksik değer doldurma ve kategori kodlama kuralları yalnızca eğitim verisine uygulandı ve öğrenilen dönüşümler test evlerine aktarıldı. V1'in aykırı değer kuralı son eğitimde iki satırı çıkardı. Değerlendirme her sürüm için aynı sıradaki 292 evin tamamını kapsar. Bu tarihsel test kümesi önceki deneylerde de incelendi. Farklar yuvarlamadan önceki değerlerden hesaplandı. R² farkı mutlak puan, RMSLE farkı göreli yüzde olarak verildi.
+
+Karşılaştırmayı yeniden çalıştırmak için depo kökünde `python -m pip install -r ames-v2/requirements.txt yellowbrick==1.5` ve ardından `python ames-v3/compare_releases.py` komutlarını kullanın. İkinci komut V1 ve V2 fiyat tahminlerini yeniden üretir, V3'ün kayıtlı tahminlerini ev kimliği ve gerçek satış fiyatıyla eşleştirir, dokuz metriği doğrular ve sitenin ev bazındaki verisini günceller. [Ev bazında tahminler](ames-v3/results/three-version-holdout.csv) · [Deney kaydı ve tam hassasiyetli farklar](ames-v3/results/three-version-holdout.json)
+
+V3'ün ayrı bir deneyinde, 1.168 geliştirme evinde iki tekrarlı iç içe çapraz doğrulamayla V2 için 0,14102 ve V3 için 0,11577 RMSLE ölçüldü. Mahalle bazındaki hatalar, 2010 yılı sınaması ve tek bir ev için tahmin komutu teknik raporda yer alıyor. [V3 deney raporu](ames-v3/README.md) · [V2 deney raporu](ames-v2/README.md)
 
 ## Historical V1 project description
 

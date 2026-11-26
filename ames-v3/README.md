@@ -1,5 +1,7 @@
 # Ames Housing V3
 
+The [release comparison](../README.md#v1-v2-ve-v3-aynı-292-evde) reports all three published versions on 292 matched sales. The [interactive portfolio](https://alperdigital.github.io/ML/) also shows each house's sale price alongside its three estimates.
+
 **Use V3 for this Ames benchmark.** Each of the 1,168 development homes received two out-of-sample predictions on different training splits. On these paired predictions, V3's RMSLE was **0.11577** versus **0.14102** for V2. The relative RMSLE gain was **+17.91%**, with a conditional 95% interval of **[+8.82%, +28.50%]**. A positive gain favors V3.
 
 **Average dollar error** fell to **$12,870.93** versus **$16,062.17** for V2. V3 reduced the average error by **$3,191.24** per sale (-19.87%, conditional 95% interval [-30.10%, -12.07%]). The registered gate requires at least 2% lower RMSLE and less than 1% MAE increase.
