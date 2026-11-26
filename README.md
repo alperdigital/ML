@@ -1,4 +1,10 @@
-> **V2 branch:** The new leakage-safe benchmark is in [ames-v2/README.md](ames-v2/README.md). See the [same-split V1 vs V2 comparison](ames-v2/README.md#v1-vs-v2--same-split-comparison-26-november-2026): the CV-selected V2 CatBoost reduces holdout RMSLE by 10.74% compared with the CV-selected V1 LightGBM, while V1 retains higher holdout R². The original V1 README follows for historical reference; its scores are not reproduced V2 results.
+# Ames Housing V3
+
+**Recommended version: V3.** On the same 1,168 development homes in two repeats of nested five-fold validation, V2 scored 0.14102 RMSLE and $16,062 MAE. V3 scored 0.11577 RMSLE and $12,871 MAE.
+
+The [V3 report](ames-v3/README.md) documents the measured difference, uncertainty, neighborhood errors, 2010 forward-year check, historical holdout and a working single-house prediction command. The [V2 report](ames-v2/README.md) preserves the prior benchmark.
+
+## Historical V1 project description
 
 <div align="center">
 

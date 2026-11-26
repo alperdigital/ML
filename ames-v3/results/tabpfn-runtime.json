@@ -1,0 +1,108 @@
+{
+  "model": "TabPFNv2 regression",
+  "checkpoint": "tabpfn-v2-regressor.ckpt",
+  "model_url": "https://huggingface.co/Prior-Labs/TabPFN-v2-reg/tree/02a44705ff7790b50cded404bc59adb94da456a1",
+  "checkpoint_sha256": "2ab5a07d5c41dfe6db9aa7ae106fc6de898326c2765be66505a07e2868c10736",
+  "checkpoint_bytes": 44390977,
+  "weight_source": "Prior Labs",
+  "pretraining": "Synthetic tabular regression tasks as described by Hollmann et al., Nature 2025.",
+  "paper": "https://doi.org/10.1038/s41586-024-08328-6",
+  "license": "priorlabs-1-1 (see pinned model card and license)",
+  "runtime": {
+    "python": "3.12.14",
+    "torch": "2.15.0",
+    "tabpfn": "10.2.0",
+    "numpy": "2.5.5",
+    "pandas": "3.1.1",
+    "scikit-learn": "1.9.1",
+    "platform": "macOS 15.6.1 arm64",
+    "host_memory_gib": 8,
+    "logical_cpus": 8,
+    "device": "cpu",
+    "estimators": "auto (8 in the parity probe)",
+    "random_state": 42
+  },
+  "compatibility_check": {
+    "candidate": "TabPFN-3.5",
+    "result": "Normal TabPFNRegressor fit in the isolated environment raised TabPFNHuggingFaceGatedRepoError requiring account sign-in and model terms acceptance. The published successor has no evaluation score here."
+  },
+  "timing_probes": {
+    "access_smoke": {
+      "training_rows": 500,
+      "query_rows": 32,
+      "estimators": 1,
+      "seconds_including_checkpoint_acquisition": 14.68
+    },
+    "cpu_thread_equivalence": {
+      "training_rows": 180,
+      "query_rows": 60,
+      "estimators": 8,
+      "one_thread_seconds": 44.66,
+      "four_thread_seconds": 28.73,
+      "maximum_absolute_difference_log_price": 0.0
+    },
+    "alt_device": {
+      "training_rows": 160,
+      "query_rows": 40,
+      "estimators": 1,
+      "cpu_float32_seconds": 4.17,
+      "mps_float32_seconds": 7.76,
+      "maximum_absolute_difference_log_price": 0.01581564463856111
+    }
+  },
+  "measured_benchmark_jobs": {
+    "batch_count": 48,
+    "total_inference_job_seconds": 9659.46,
+    "by_task": {
+      "r0f0": {
+        "inner_oof_seconds": 943.1,
+        "evaluation_seconds": 247.1
+      },
+      "final": {
+        "inner_oof_seconds": 691.46,
+        "evaluation_seconds": 206.48
+      },
+      "r0f1": {
+        "inner_oof_seconds": 532.62,
+        "evaluation_seconds": 214.79
+      },
+      "r0f2": {
+        "inner_oof_seconds": 476.96,
+        "evaluation_seconds": 222.58
+      },
+      "r0f3": {
+        "inner_oof_seconds": 537.28,
+        "evaluation_seconds": 233.82
+      },
+      "r0f4": {
+        "inner_oof_seconds": 507.97,
+        "evaluation_seconds": 261.02
+      },
+      "r1f0": {
+        "inner_oof_seconds": 557.22,
+        "evaluation_seconds": 239.09
+      },
+      "r1f1": {
+        "inner_oof_seconds": 505.17,
+        "evaluation_seconds": 243.19
+      },
+      "r1f2": {
+        "inner_oof_seconds": 466.59,
+        "evaluation_seconds": 228.87
+      },
+      "r1f3": {
+        "inner_oof_seconds": 511.61,
+        "evaluation_seconds": 228.94
+      },
+      "r1f4": {
+        "inner_oof_seconds": 485.68,
+        "evaluation_seconds": 248.72
+      },
+      "temporal": {
+        "inner_oof_seconds": 595.7,
+        "evaluation_seconds": 273.5
+      }
+    },
+    "definition": "Sum of elapsed inference job durations, which overlap in wall time with two slots. First task uses observed full inner OOF and outer query durations. Other times include worker startup and model inference, excluding time waiting for the inference lock. Excludes installation, compatibility probes and redundant stopped work."
+  }
+}

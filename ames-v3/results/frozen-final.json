@@ -1,0 +1,157 @@
+{
+  "v2": "catboost_engineered",
+  "v2_cat": "catboost_engineered",
+  "best_new": "tabpfn_v2",
+  "recipe": "best_new",
+  "weights": [
+    0.07286623373798101,
+    0.09528264841634904,
+    0.8318511178456699
+  ],
+  "member_order": [
+    "v1_xgb",
+    "v2_cat",
+    "best_new"
+  ],
+  "inner_rmsle": {
+    "v1_xgb": 0.12798827278399041,
+    "v2_cat": 0.12426878216613967,
+    "best_new": 0.1159637364737029,
+    "v2": 0.12426878216613967,
+    "equal_blend": 0.1181703388879048,
+    "weighted_blend": 0.11561635905435746
+  },
+  "specs": {
+    "onehot_plain": {
+      "model": "catboost",
+      "native": false,
+      "structural": false,
+      "neighborhood": false,
+      "indicator": false
+    },
+    "native_plain": {
+      "model": "catboost",
+      "native": true,
+      "structural": false,
+      "neighborhood": false,
+      "indicator": false
+    },
+    "native_structural": {
+      "model": "catboost",
+      "native": true,
+      "structural": true,
+      "neighborhood": false,
+      "indicator": false
+    },
+    "native_neighborhood": {
+      "model": "catboost",
+      "native": true,
+      "structural": true,
+      "neighborhood": true,
+      "indicator": false
+    },
+    "native_indicator": {
+      "model": "catboost",
+      "native": true,
+      "structural": true,
+      "neighborhood": false,
+      "indicator": true
+    },
+    "native_full": {
+      "model": "catboost",
+      "native": true,
+      "structural": true,
+      "neighborhood": true,
+      "indicator": true
+    },
+    "ridge_full": {
+      "model": "ridge",
+      "native": false,
+      "structural": true,
+      "neighborhood": true,
+      "indicator": true
+    },
+    "tabpfn_v2": {
+      "model": "tabpfn",
+      "checkpoint": "tabpfn-v2-regressor.ckpt",
+      "version": "10.2.0",
+      "ensemble": "auto",
+      "seed": 42
+    }
+  },
+  "v2_configs": {
+    "dummy_engineered": {
+      "model": "dummy",
+      "params": {},
+      "engineered": true
+    },
+    "ridge_engineered": {
+      "model": "ridge",
+      "params": {
+        "alpha": 30.337134645398095
+      },
+      "engineered": true
+    },
+    "ridge_raw": {
+      "model": "ridge",
+      "params": {
+        "alpha": 30.337134645398095
+      },
+      "engineered": false
+    },
+    "xgboost_engineered": {
+      "model": "xgboost",
+      "params": {
+        "n_estimators": 517,
+        "max_depth": 3,
+        "learning_rate": 0.02380136361716465
+      },
+      "engineered": true
+    },
+    "xgboost_raw": {
+      "model": "xgboost",
+      "params": {
+        "n_estimators": 517,
+        "max_depth": 3,
+        "learning_rate": 0.02380136361716465
+      },
+      "engineered": false
+    },
+    "lightgbm_engineered": {
+      "model": "lightgbm",
+      "params": {
+        "n_estimators": 996,
+        "max_depth": 3,
+        "learning_rate": 0.011264536175429378
+      },
+      "engineered": true
+    },
+    "lightgbm_raw": {
+      "model": "lightgbm",
+      "params": {
+        "n_estimators": 996,
+        "max_depth": 3,
+        "learning_rate": 0.011264536175429378
+      },
+      "engineered": false
+    },
+    "catboost_engineered": {
+      "model": "catboost",
+      "params": {
+        "iterations": 741,
+        "depth": 5,
+        "learning_rate": 0.04633150554370353
+      },
+      "engineered": true
+    },
+    "catboost_raw": {
+      "model": "catboost",
+      "params": {
+        "iterations": 741,
+        "depth": 5,
+        "learning_rate": 0.04633150554370353
+      },
+      "engineered": false
+    }
+  }
+}

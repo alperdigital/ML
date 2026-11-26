@@ -47,9 +47,14 @@ class FoundationRegressor:
                        SKB_DATA_DIRECTORY=str(path/"skrub"))
             # Prevent the V2 Python 3.9 wheel directory from leaking into Python 3.12.
             env.pop("PYTHONPATH", None)
-            # Keep one memory-intensive inference process active per user temp directory.
+            # Each slot permits one in-flight inference. The normal evaluation uses
+            # slot 1; a separate disjoint-fold precompute can opt into slot 2.
             from filelock import FileLock
-            with FileLock(str(Path(tempfile.gettempdir())/"ames-v3-tabpfn-cpu.lock")):
+            slot = os.environ.get("AMES_TABPFN_SLOT", "1")
+            if slot not in ("1", "2"):
+                raise ValueError("AMES_TABPFN_SLOT must be 1 or 2")
+            lock_name = "ames-v3-tabpfn-cpu.lock" if slot == "1" else "ames-v3-tabpfn-cpu-2.lock"
+            with FileLock(str(Path(tempfile.gettempdir()) / lock_name)):
                 if cache and target.exists():
                     return np.load(target, allow_pickle=False)
                 start = time.monotonic()

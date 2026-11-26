@@ -20,7 +20,12 @@ def main(folder, weight_dir):
         raise RuntimeError("Use tabpfn==10.2.0 in the foundation-model environment")
     if hashlib.sha256(weights.read_bytes()).hexdigest() != CHECKPOINT_SHA256:
         raise ValueError("TabPFNv2 regression checkpoint fingerprint mismatch")
-    torch.set_num_threads(1)
+    # On this CPU the 1- and 4-thread eight-estimator parity probe produced
+    # identical predictions. A finite thread budget keeps memory usage bounded.
+    threads = int(os.environ.get("AMES_TABPFN_THREADS", "4"))
+    if not 1 <= threads <= 4:
+        raise ValueError("AMES_TABPFN_THREADS must be between one and four")
+    torch.set_num_threads(threads)
     from tabpfn.constants import ModelVersion
     model = TabPFNRegressor.create_default_for_version(
         ModelVersion.V2, model_path=weights, device="cpu", random_state=42)
