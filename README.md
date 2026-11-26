@@ -1,3 +1,5 @@
+> **V2 branch:** The new leakage-safe benchmark is in [ames-v2/README.md](ames-v2/README.md). The original V1 README follows for historical reference; its scores are not reproduced V2 results.
+
 <div align="center">
 
 # 🏠 Ames Housing Price Prediction
