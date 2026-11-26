@@ -1,0 +1,19 @@
+# Ames V3 experiment protocol
+
+Registered before any V3 development or holdout scores. The raw CSV SHA-256 is 1e18addf81e5e4d347cc17ee6075bbe4a42b7fa26b9e5b063e8f692a5f929d41. V2 source is 7473f585685b15cf886daa32041f8f293e887d1e. Reference reproduction uses V2's historical protocol separately.
+
+## Splits and budget
+
+Use V2's ordered 1,168/292 split (sklearn train_test_split, seed 42). On development only, use five shuffled outer folds for each of seeds 2603 and 2604. Use three shuffled inner folds with seed 42 for both procedures. For a forward-year stress test, fit the full selection procedure using development sales before 2010 and predict development sales in 2010. Budget one final selection on the 1,168 development rows. The historical holdout is opened once for the frozen V3 procedure. All evaluated houses are retained.
+
+In each selection, V2 retunes its published four model families with 20 sequential Optuna TPE trials per family, same search spaces and seed as V2. Use mean inner-fold RMSLE and the published feature ablation at the best parameters. Include the dummy. The V3 comparison reuses the inner predictions of this same budget, including the best CatBoost variant. Add V1's fixed XGBoost baseline and seven fixed V3 candidates. Charge V3 the shared search cost when reporting stand-alone cost. Use one native training thread per fit; run independent splits concurrently. No paid resources.
+
+## V3 candidates and selection
+
+CatBoost recipes use 500 iterations, depth 4, learning rate 0.05, seed 42. Compare generic one-hot vs native categories with matched features, then structural absence vs generic missingness at fixed native encoding. Under structural handling, test the 2×2 combination of global vs training-neighborhood frontage median and an off/on frontage-missing flag. Include ridge regression (alpha 30) with the complete feature set. If a local regression TabPFN checkpoint and compatible runtime can actually be used, include one fixed default configuration, otherwise record the prerequisite that prevented execution. No holdout labels for this decision.
+
+Find the best new candidate by mean inner-fold RMSLE. Compare three single models (V1 XGBoost, tuned V2 CatBoost, best new), an equal logarithmic blend of those three, and a convex logarithmic blend with weights fitted to their inner OOF predictions. Also allow the inner-selected full V2 winner to carry forward as a single model. Choose the lowest mean inner-fold RMSLE, preferring a single model whenever within 0.0005 absolute RMSLE of the best blend. Break single-model ties deterministically by input order. Freeze this rule before scoring outer folds. No early stopping using validation outcomes outside the inner training. All learned transformations, feature statistics, weights and hyperparameters stay inside their training boundaries.
+
+## Decision and diagnostics
+
+Pool the paired outer predictions across both repeats. Promote V3 if relative RMSLE decreases by at least 2% and relative dollar MAE increases by less than 1% vs the nested V2 procedure. For a conditional 95% interval on the RMSLE gain, resample properties with replacement 5,000 times keeping their two repeat predictions together, seed 2603. Also report R² and MAE, direction of residuals for the blend members, contributions of prespecified ablations, error by year, price quartile and neighborhood (at least 20 distinct properties for neighborhood estimates). The temporal stress test and historical holdout are descriptive. Neither influences promotion. The data cover Ames sales from 2006–2010.
