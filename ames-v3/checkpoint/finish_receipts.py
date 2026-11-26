@@ -20,6 +20,7 @@ sys.path.insert(0, str(V3))
 from design import DATA_SHA, inner_splits, load_data, partitions
 from models_v3 import blend_predict
 from predict import prepare_row, recommended_version
+from report import _comparison
 from src.ames_data import INPUT_SCHEMA, read_ames_csv
 from tabpfn_bridge import CHECKPOINT_SHA256
 
@@ -43,6 +44,16 @@ def verify_run(work, out, manifest, data, summary, frozen):
     check(all(audits["final"][k] == v for k, v in frozen.items()), "Frozen recipe differs from final audit")
     outer = pd.read_csv(out / "outer-predictions.csv.gz")
     check(len(outer) == 2336, "Incomplete outer predictions")
+    partitions_scored = {"outer": outer, "temporal": pd.read_csv(out / "temporal.csv"),
+                         "holdout": pd.read_csv(out / "final.csv")}
+    for group, frame in partitions_scored.items():
+        scores = _comparison(frame)
+        for model in ("v2", "v3"):
+            for metric, value in scores[model].items():
+                np.testing.assert_allclose(value, summary[group][model][metric], atol=1e-7, rtol=0)
+    primary = _comparison(outer)
+    check(summary["promote_v3"] == (primary["rmsle_gain_pct"] >= 2 and primary["mae_change_pct"] < 1),
+          "Recommendation differs from registered promotion rule")
     cache = work / "foundation-cache" / f"threads-{manifest['threads_per_tabpfn_job']}"
     seconds = {}
     for name, (train, evaluation, repeat, fold) in tasks.items():
@@ -53,8 +64,10 @@ def verify_run(work, out, manifest, data, summary, frozen):
               f"{name} lacks the corrected foundation-model run")
         check(all([t["trial"] for t in trials[family]] == list(range(20))
                   for family in ("ridge", "xgboost", "lightgbm", "catboost")), f"Incomplete trials for {name}")
-        frame = (pd.read_csv(out / f"{name}.csv") if name in ("final", "temporal")
-                 else outer[(outer["repeat"] == repeat) & (outer["fold"] == fold)])
+        if name in ("final", "temporal"):
+            frame = partitions_scored["holdout" if name == "final" else "temporal"]
+        else:
+            frame = outer[(outer["repeat"] == repeat) & (outer["fold"] == fold)]
         np.testing.assert_array_equal(frame[["Id", "SalePrice"]], data.iloc[evaluation][["Id", "SalePrice"]])
         np.testing.assert_array_equal(frame.v3, frame[audit["recipe"]])
         sizes = [(len(t), len(v)) for t, v in inner_splits(data.iloc[train])] + [(len(train), len(evaluation))]
@@ -88,6 +101,8 @@ def finish(work, out):
     os.environ.update(AMES_TABPFN_PRED_CACHE=str(work / "foundation-cache"), AMES_TABPFN_THREADS=str(threads))
     python, architecture, versions = summary["foundation"]["runtime"]
     timing = {"model": "TabPFNv2 regression", "checkpoint": "tabpfn-v2-regressor.ckpt",
+              "model_url": "https://huggingface.co/Prior-Labs/TabPFN-v2-reg/tree/02a44705ff7790b50cded404bc59adb94da456a1",
+              "license": "priorlabs-1-1", "paper": "https://doi.org/10.1038/s41586-024-08328-6",
               "input_schema": INPUT_SCHEMA, "dataset_sha256": DATA_SHA, "checkpoint_sha256": CHECKPOINT_SHA256,
               "worker_sha256": hashlib.sha256((V3 / "tabpfn_worker.py").read_bytes()).hexdigest(),
               "runtime": dict(versions, python=python, architecture=architecture, device="cpu", threads_per_job=threads),
