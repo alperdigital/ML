@@ -35,14 +35,30 @@ The earlier /mnt/data prototype was unavailable. The V2 code was independently r
 
 ## Full-model benchmark (26 November 2026)
 
-Actual V1 training data; 3 Optuna trials per model, 5 folds. This is a small search budget, not the recommended 20-trial run.
+Actual V1 training data (1,460 rows; 1,168 development and 292 holdout). The recommended 20 Optuna trials per model were completed for all four models (80 total), with five-fold development CV and the same seed and split as the preliminary run.
 
 | Model | CV RMSLE, engineered | CV RMSLE, no engineered features |
 |---|---:|---:|
 | dummy | 0.39007 | — |
-| ridge | 0.14212 | 0.14179 |
-| xgboost | 0.12749 | 0.13070 |
-| lightgbm | 0.12742 | 0.13064 |
-| catboost | 0.12012 | 0.12253 |
+| ridge | 0.14154 | 0.14132 |
+| xgboost | 0.12469 | 0.12577 |
+| lightgbm | 0.12518 | 0.12665 |
+| catboost | 0.11909 | 0.12141 |
 
-Selected by development CV: **catboost** (engineered=True). Holdout RMSLE **0.13018**, R² **0.89192**, MAE **$15,344.18**. See [results.json](results.json) for fold-level scores, parameters and package versions. Three unit tests passed. No V1 score comparisons are claimed because its split and evaluation protocol differ.
+Selected by development CV: **catboost** (engineered=True; CV RMSLE **0.11909**). Best parameters: `{"iterations": 545, "depth": 4, "learning_rate": 0.05243180891902853}`.
+
+| Metric | 3 trials/model | 20 trials/model |
+|---|---:|---:|
+| Best development CV RMSLE | 0.12012 | 0.11909 |
+| Holdout RMSLE | 0.13018 | 0.12346 |
+| Holdout R² | 0.89192 | 0.89969 |
+| Holdout MAE (USD) | 15,344.18 | 14,993.51 |
+
+Holdout RMSLE decreased by **5.17%** relative to the 3-trial run. The same holdout was previously observed; it was not used for tuning or candidate selection, and this is not a new external validation set.
+
+- [Latest results — 20 trials/model](results.json): individual fold scores, winning configurations, dataset fingerprint and package versions.
+- [Optuna trial history](optuna-trials-20.json): all 80 completed trial scores and parameters.
+- [Archived 3-trial benchmark](results-3-trials.json).
+- Three unit tests passed again. Each model's 20 trial entries and best objective were verified against the benchmark output.
+
+No V1 score comparisons are claimed because its split and evaluation protocol differ.
