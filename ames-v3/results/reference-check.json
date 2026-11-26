@@ -1,0 +1,30 @@
+{
+  "source_v2": "7473f585685b15cf886daa32041f8f293e887d1e",
+  "dataset_sha256": "1e18addf81e5e4d347cc17ee6075bbe4a42b7fa26b9e5b063e8f692a5f929d41",
+  "development_index_sha256": "fbb0ef6b3187b2d632840fec65c796d3cf706eaed200f2f8952534d2e7137e41",
+  "holdout_index_sha256": "471ba7654e8fd463e2fd39e521b7b05863c8692941e04b5f54f2525b2bb68ead",
+  "runtime": {
+    "python": "3.9.6",
+    "numpy": "2.0.2",
+    "pandas": "2.3.3",
+    "scikit-learn": "1.5.0",
+    "xgboost": "2.1.4",
+    "lightgbm": "4.6.0",
+    "catboost": "1.2.10",
+    "optuna": "5.0.0",
+    "yellowbrick": "1.5"
+  },
+  "compared_file": "ames-v2/v1-v2-comparison.json",
+  "reproduced_file_sha256": "96db27d57dacf2889320cc0e332c34b13899fa15108c9431e5739289a6e80bcf",
+  "byte_identical": true,
+  "v2_catboost": {
+    "rmsle": 0.12345720029829155,
+    "r2": 0.8996906641201408,
+    "mae": 14993.50757342519
+  },
+  "v1_xgboost": {
+    "rmsle": 0.13187966716772692,
+    "r2": 0.9234362244606018,
+    "mae": 14478.22257598459
+  }
+}
