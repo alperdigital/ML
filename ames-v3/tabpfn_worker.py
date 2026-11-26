@@ -29,14 +29,14 @@ def main(folder, weight_dir):
     from tabpfn.constants import ModelVersion
     model = TabPFNRegressor.create_default_for_version(
         ModelVersion.V2, model_path=weights, device="cpu", random_state=42)
-    training = pd.read_csv(folder/"training.csv")
-    target = np.load(folder/"target.npy")
-    evaluation = pd.read_csv(folder/"evaluation.csv")
     cats = (folder/"categories.txt").read_text().splitlines()
-    # Preserve known training dtypes even for a single row with missing categories.
-    for col in cats:
-        training[col] = training[col].astype("string")
-        evaluation[col] = evaluation[col].astype("string")
+    # The bridge serializes already decoded Ames data. Only empty cells in this
+    # exchange are missing. Never re-interpret the category "None" or coerce
+    # a numeric-looking category to an integer before the model sees it.
+    options = dict(keep_default_na=False, na_values=[""], dtype={col: "string" for col in cats})
+    training = pd.read_csv(folder/"training.csv", **options)
+    evaluation = pd.read_csv(folder/"evaluation.csv", **options)
+    target = np.load(folder/"target.npy")
     model.fit(training, np.log1p(target))
     pred = np.asarray(np.maximum(np.expm1(model.predict(evaluation)), 0.), dtype=float)
     if pred.shape != (len(evaluation),) or not np.isfinite(pred).all():

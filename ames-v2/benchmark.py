@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import platform
+import sys
 from importlib.metadata import version, PackageNotFoundError
 from pathlib import Path
 
@@ -18,13 +19,11 @@ from sklearn.model_selection import KFold, train_test_split, cross_val_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-SEED = 42
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.ames_data import INPUT_SCHEMA, read_ames_csv
+from src.ames_metrics import rmsle
 
-def rmsle(y, pred):
-    y, pred = np.asarray(y), np.asarray(pred)
-    if (y < 0).any():
-        raise ValueError("Negative target")
-    return float(np.sqrt(np.mean((np.log1p(y) - np.log1p(np.maximum(pred, 0))) ** 2)))
+SEED = 42
 
 class Features(BaseEstimator, TransformerMixin):
     def __init__(self, engineered=True):
@@ -98,8 +97,8 @@ def package_versions():
             pass
     return result
 
-def run(path, models, trials=20, folds=5):
-    df = pd.read_csv(path)
+def run(path, models, trials=20, folds=5, trial_history=None):
+    df = read_ames_csv(path)
     y = df.pop("SalePrice")
     if y.isna().any() or (y < 0).any() or not np.isfinite(y).all():
         raise ValueError("SalePrice must contain finite nonnegative labels")
@@ -115,6 +114,10 @@ def run(path, models, trials=20, folds=5):
             study.optimize(lambda t: cv_scores(estimator(name, search_space(t, name)), Xd, yd, cv).mean(),
                            n_trials=trials)
             params = study.best_params
+            if trial_history is not None:
+                trial_history[name] = [
+                    dict(trial=t.number, cv_rmsle=t.value, params=t.params) for t in study.trials
+                ]
         for engineered in ([True] if name == "dummy" else [True, False]):
             scores = cv_scores(estimator(name, params, engineered), Xd, yd, cv)
             rows.append(dict(model=name, engineered=engineered, params=params,
@@ -123,7 +126,8 @@ def run(path, models, trials=20, folds=5):
     best = min(rows, key=lambda row: row["cv_rmsle"])
     fitted = estimator(best["model"], best["params"], best["engineered"]).fit(Xd, yd)
     pred = np.maximum(fitted.predict(Xh), 0)
-    return dict(seed=SEED, versions=package_versions(), dataset_sha256=hashlib.sha256(Path(path).read_bytes()).hexdigest(),
+    return dict(seed=SEED, versions=package_versions(), input_schema=INPUT_SCHEMA,
+                dataset_sha256=hashlib.sha256(Path(path).read_bytes()).hexdigest(),
                 rows=len(X), development_rows=len(Xd), holdout_rows=len(Xh),
                 trials=trials, folds=folds, candidates=rows,
                 selected=dict(model=best["model"], engineered=best["engineered"],
@@ -138,9 +142,16 @@ if __name__ == "__main__":
     p.add_argument("--trials", type=int, default=20)
     p.add_argument("--folds", type=int, default=5)
     p.add_argument("--output", default="ames-v2/results.json")
+    p.add_argument("--trial-history", type=Path, help="Write all completed Optuna trials")
     args = p.parse_args()
-    result = run(args.data, args.models, args.trials, args.folds)
+    history = {}
+    result = run(args.data, args.models, args.trials, args.folds, trial_history=history)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2, allow_nan=False) + "\n")
+    if args.trial_history:
+        args.trial_history.parent.mkdir(parents=True, exist_ok=True)
+        trials = dict(seed=SEED, folds=args.folds, trials_per_model=args.trials,
+                      input_schema=INPUT_SCHEMA, dataset_sha256=result["dataset_sha256"], trials=history)
+        args.trial_history.write_text(json.dumps(trials, indent=2, allow_nan=False) + "\n")
     print(json.dumps(result["selected"], indent=2))

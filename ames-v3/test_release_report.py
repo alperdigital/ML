@@ -41,6 +41,21 @@ def turkish_number(value, digits):
 
 
 class ReleaseReportTests(unittest.TestCase):
+    def test_portfolio_numbers_and_examples_agree_with_experiments(self):
+        from render_portfolio import refresh
+        refresh(check=True)
+
+    def test_interval_pairs_single_column_prices(self):
+        from compare_releases import paired_intervals
+        actual = [100, 120, 135]
+        old, new = [90, 115, 140], [95, 118, 137]
+        expected = paired_intervals(actual, old, new, draws=200)
+        self.assertEqual(expected, paired_intervals([[x] for x in actual], old, [[x] for x in new], draws=200))
+        with self.assertRaises(ValueError):
+            paired_intervals(actual, old[:2], new)
+        with self.assertRaisesRegex(ValueError, "zero-error"):
+            paired_intervals(actual, actual, new)
+
     def test_three_published_views_match_full_precision_predictions(self):
         with (ROOT / "ames-v3/results/three-version-holdout.csv").open() as handle:
             predictions = list(csv.DictReader(handle))

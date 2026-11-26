@@ -29,6 +29,9 @@ venv/
 env/
 ENV/
 .venv
+.venv-ames/
+.venv-pfn/
+.ames-v3-work/
 
 # IDE
 .vscode/

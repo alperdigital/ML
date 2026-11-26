@@ -1,4 +1,4 @@
-"""Compare corrected V1, published V2 and frozen V3 on the historical holdout."""
+"""Compare the three corrected procedures, paired by sale on the historical holdout."""
 import json
 import sys
 from pathlib import Path
@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 
 from design import DATA_SHA, load_data, partitions
+from src.ames_data import INPUT_SCHEMA
+from src.ames_metrics import price_vectors
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "ames-v2"))
@@ -19,7 +21,8 @@ def read_json(path):
 
 def paired_intervals(actual, previous, current, draws=20_000, seed=42):
     """Resample the same houses for both models; fitting uncertainty is excluded."""
-    y = np.asarray(actual)
+    y, previous = price_vectors(actual, previous)
+    _, current = price_vectors(y, current)
     estimates = np.column_stack([previous, current])
     squared_log = (np.log1p(estimates) - np.log1p(y[:, None])) ** 2
     absolute = np.abs(estimates - y[:, None])
@@ -29,6 +32,8 @@ def paired_intervals(actual, previous, current, draws=20_000, seed=42):
         indices = rng.integers(len(y), size=(min(256, draws - start), len(y)))
         rmsle = np.sqrt(squared_log[indices].mean(axis=1))
         mae = absolute[indices].mean(axis=1)
+        if np.any(rmsle[:, 0] == 0):
+            raise ValueError("Relative RMSLE gain is undefined for a zero-error reference draw")
         relative.extend(100 * (1 - rmsle[:, 1] / rmsle[:, 0]))
         dollars.extend(mae[:, 0] - mae[:, 1])
     return {
@@ -39,7 +44,10 @@ def paired_intervals(actual, previous, current, draws=20_000, seed=42):
 
 
 def published_v2_config(published):
-    """Read the original five-fold release winner without using holdout scores."""
+    """Read the revised five-fold V2 winner without using holdout scores."""
+    from src.ames_data import INPUT_SCHEMA
+    if published.get("input_schema") != INPUT_SCHEMA:
+        raise ValueError("V2 result uses an older input schema; rerun the V2 benchmark")
     if published["folds"] != 5 or published["trials"] != 20 or published["dataset_sha256"] != DATA_SHA:
         raise ValueError("Expected the published five-fold, 20-trial V2 experiment")
     best = min(published["candidates"], key=lambda row: row["cv_rmsle"])
@@ -64,6 +72,8 @@ def run():
         raise ValueError("Published split fingerprints differ")
     if any(obj["dataset_sha256"] != DATA_SHA for obj in (comparison, published, summary)):
         raise ValueError("Published source datasets differ")
+    if any(obj.get("input_schema") != INPUT_SCHEMA for obj in (comparison, published, summary, frozen)):
+        raise ValueError("All results must use the same Ames CSV interpretation")
     houses = df.iloc[test][["Id", "Neighborhood", "YrSold", "SalePrice"]].reset_index(drop=True)
     pd.testing.assert_frame_equal(houses, final[houses.columns], check_exact=True)
     if len(dev) != 1168 or len(houses) != 292 or not houses.Id.is_unique:
@@ -79,8 +89,8 @@ def run():
     if v1_params != v1_reference["params"] or v1_train_rows != v1_reference["development_train_rows"]:
         raise ValueError("V1 configuration differs from its published comparison")
 
-    # The original five-fold V2 release and the nested V3 experiment tuned V2
-    # separately. Use the former's winning configuration to compare releases.
+    # Compare the five-fold V2 rerun with the other releases. V3's nested
+    # three-fold V2 comparator is a separately tuned procedure.
     v2 = published_v2_config(published)
     houses["v2"], v2_train_rows, _ = v2_predict(v2, training, y, X)
     recipe = frozen["recipe"]
@@ -111,7 +121,7 @@ def run():
             "paired_interval": paired_intervals(houses.SalePrice, houses[old], houses[new]),
         }
     audit = {
-        "dataset_sha256": DATA_SHA, "ordered_split_sha256": ids, "seed": 42,
+        "dataset_sha256": DATA_SHA, "input_schema": INPUT_SCHEMA, "ordered_split_sha256": ids, "seed": 42,
         "development_rows": len(dev), "holdout_rows": len(test),
         "effective_training_rows": {"v1": v1_train_rows, "v2": v2_train_rows, "v3": len(dev)},
         "models": {"v1": v1, "v2": v2["model"],
@@ -119,7 +129,8 @@ def run():
         "v2_published_params": v2["params"], "metrics": scores, "differences": differences,
         "v1_historical_source_commit": comparison["v1_source_commit"],
         "v1_revision": comparison["v1_revision"],
-        "v2_published_commit": "7473f585685b15cf886daa32041f8f293e887d1e",
+        "v2_historical_source_commit": "7473f585685b15cf886daa32041f8f293e887d1e",
+        "v2_rerun_selection": "ames-v2/results.json (5 folds, 20 trials per family)",
         "v3_protocol": "protocol.md", "v3_frozen_recipe": recipe,
     }
     houses.to_csv(predictions_dir / "three-version-holdout.csv", index=False)

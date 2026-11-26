@@ -9,6 +9,9 @@ from scipy.stats import skew
 from scipy.special import boxcox1p
 
 
+MISSING_CATEGORY = "__MISSING__"
+
+
 class DataPreprocessor:
     """
     Data preprocessing class for Ames Housing dataset
@@ -47,7 +50,7 @@ class DataPreprocessor:
             'BsmtExposure': 'None',
             'BsmtFinType1': 'None',
             'BsmtFinType2': 'None',
-            'MasVnrType': 'None',
+            'MasVnrType': 'Unknown',
             'MasVnrArea': 'Zero',
             'MSZoning': 'Mode',
             'Utilities': 'Drop',
@@ -85,6 +88,8 @@ class DataPreprocessor:
                 
             if strategy == 'None':
                 data[column] = data[column].fillna('None')
+            elif strategy == 'Unknown':
+                data[column] = data[column].fillna(MISSING_CATEGORY)
             elif strategy == 'Zero':
                 data[column] = data[column].fillna(0)
             elif strategy == 'Mode':
@@ -229,50 +234,16 @@ class DataPreprocessor:
             if col_name not in data.columns:
                 continue
             
+            values = data[col_name].astype("string")
             if fit:
-                le = LabelEncoder()
-                data[col_name] = le.fit_transform(data[col_name].astype(str))
-                self.label_encoders[col_name] = le
-            else:
-                if col_name in self.label_encoders:
-                    le = self.label_encoders[col_name]
-                    # Handle unseen categories
-                    # Fill NaN before converting to string to avoid 'nan' string values
-                    if data[col_name].isnull().any():
-                        # Use the first known class as default for NaN
-                        if len(le.classes_) > 0:
-                            nan_replacement = le.classes_[0]
-                        else:
-                            nan_replacement = '0'
-                        data[col_name] = data[col_name].fillna(nan_replacement)
-                    data[col_name] = data[col_name].astype(str)
-                    unique_values = set(data[col_name].unique())
-                    known_values = set(le.classes_)
-                    unknown_values = unique_values - known_values
-                    
-                    if unknown_values:
-                        # Replace unknown with most common (first class)
-                        if len(le.classes_) > 0:
-                            default_value = le.classes_[0]
-                            data[col_name] = data[col_name].replace(list(unknown_values), default_value)
-                        else:
-                            # If no classes, use '0' as default
-                            data[col_name] = data[col_name].replace(list(unknown_values), '0')
-                    
-                    # Only transform if all values are known
-                    try:
-                        data[col_name] = le.transform(data[col_name])
-                    except ValueError as e:
-                        # If transformation fails, use fit_transform with new data
-                        # This updates the encoder to include new categories
-                        print(f"Warning: Label encoding failed for {col_name}. Using fit_transform with new data.")
-                        data[col_name] = le.fit_transform(data[col_name])
-                        # Update stored encoder to reflect new fit
-                        self.label_encoders[col_name] = le
-                else:
-                    # If encoder not found and fit=False, skip encoding
-                    print(f"Warning: Encoder for '{col_name}' not found. Skipping encoding.")
-        
+                self.label_encoders[col_name] = LabelEncoder().fit(values.dropna())
+            if col_name not in self.label_encoders:
+                raise ValueError(f"Missing training encoder for {col_name}")
+            # Existing classes retain their training codes. Pandas reserves -1
+            # for an unseen or missing label, including in all-missing columns.
+            known = self.label_encoders[col_name].classes_
+            data[col_name] = pd.Categorical(values, categories=known).codes
+
         return data
     
     def apply_boxcox(self, data, lambda_param=0.15):

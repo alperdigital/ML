@@ -26,6 +26,24 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+.archive-note {
+  background: #edf1f5;
+  border-bottom: 1px solid var(--line);
+  color: var(--grey);
+  font-size: .875rem;
+}
+
+.archive-note p {
+  margin-block: 0;
+  padding-block: .65rem;
+}
+
+.archive-note a {
+  color: var(--blue);
+  text-decoration: underline;
+  text-underline-offset: .16em;
+}
+
 img {
   display: block;
   max-width: 100%;

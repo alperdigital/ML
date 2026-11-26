@@ -1,0 +1,82 @@
+# Ames Housing V3
+
+On 1,168 development homes, each predicted twice outside training, V3 achieved **{outer_v3_rmsle:.5f} RMSLE** and **{outer_v3_mae} MAE**. The nested V2 comparator achieved **{outer_v2_rmsle:.5f}** and **{outer_v2_mae}**. The signed relative RMSLE reduction was **{outer_gain:.2f}%** (conditional 95% interval {rmsle_ci_low:.2f}% to {rmsle_ci_high:.2f}%). MAE changed by **{mae_change:+.2f}%** (interval {mae_ci_low:.2f}% to {mae_ci_high:.2f}%). V3 **{promotion}** the predeclared promotion conditions.
+
+The [release comparison](../README.md#v1-v2-ve-v3-aynı-292-evde) uses the corrected five-fold V2 on 292 sales. The comparator in this technical report is independently tuned on three inner folds within each training split. [Portfolio](https://alperdigital.github.io/ML/) · [Project methods and decisions in Turkish](https://alperdigital.github.io/ML/proje-detaylari.html)
+
+## Paired results
+
+| Evaluation | Procedure | RMSLE ↓ | MAE (USD) ↓ | R² ↑ |
+|---|---|---:|---:|---:|
+{partition_table}
+
+The nested V2 selections across the ten outer folds were {v2_selections}. Its largest dollar miss was house {worst_id} in repeat {worst_repeat}, fold {worst_fold} (zero-based). It sold for {worst_actual} and the inner-selected `{worst_model}` predicted {worst_pred}. Keeping the challenger family fixed to CatBoost yielded {fixed_cat_rmsle:.5f} RMSLE across the same outer homes. The signed relative RMSLE reduction against fixed-family CatBoost was {fixed_cat_gain:.2f}%. All homes remain in the primary comparison.
+
+V3's median absolute outer prediction error was {median_error}, and the 90th percentile was {p90_error}. Among neighborhoods with at least 20 distinct homes, {neighborhood} had the highest V3 RMSLE ({neighborhood_rmsle:.4f}, {neighborhood_homes} homes). V3 MAE in the lowest and highest sale-price quartiles was {quartile_one_mae} and {quartile_four_mae}. Quartile boundaries come from unique development sales.
+
+## What changed the price predictions?
+
+Each row compares fixed CatBoost settings on the same outer houses. The final column expresses the relative RMSLE reduction. CatBoost and Ridge derive floor area, full- and half-bath equivalents, and house and remodel ages. TabPFNv2 instead uses the 79 source features, excluding sale price and house ID.
+
+| Feature decision | Before RMSLE | After RMSLE | Relative reduction |
+|---|---:|---:|---:|
+{ablation_table}
+
+In the development sample, all {missing_fireplace} missing fireplace-quality values coincided with zero fireplaces. Structural rules preserve an observed quality value even when a counter conflicts. The downstream metric is sale-price error. Evaluating imputation fidelity would require withholding known feature values and scoring their reconstruction. [Data definitions](../data_description.txt) · [Feature and model code](models_v3.py)
+
+| Outer member or blend | RMSLE ↓ | MAE ↓ | R² ↑ |
+|---|---:|---:|---:|
+{member_table}
+
+Outer recipe selections were {v3_selections}. The final selection used **{final_recipe}**. For the separately evaluated weighted blend, fitted weights in the order V1 XGBoost, nested V2 CatBoost and the best new candidate were **{blend_weights}**. Across outer evaluations V1 XGBoost and nested V2 CatBoost had opposite signed price errors on {opposite_errors:.1f}% of predictions and a signed log-residual correlation of {log_correlation:.3f}. [Frozen configuration](results/frozen-final.json)
+
+## Evaluation protocol and audit
+
+The 2006–2010 data consist of 1,460 labeled Ames sales. Seed 42 reserves the historical 292. On the other 1,168, two repetitions of shuffled five-fold outer validation score the whole selection method. Three inner folds tune four V2 families, with 20 trials per family. The ten outer searches, the 2010 stress test and the final search total **960 trials**. The separate five-fold V2 release search adds 80. For the forward test, development sales before 2010 form the training pool and 136 development sales from 2010 are evaluated.
+
+The weighted blend is scored by a two-way split within each original inner validation fold. Both halves receive base predictions from fits that saw neither half. Weights learned on one half score the other. After selection, deployment weights use all inner out-of-fold member predictions. A single model is preferred within 0.0005 absolute RMSLE of the best blend. Promotion requires at least 2% pooled outer RMSLE gain and below 1% relative MAE increase. A conditional interval resamples the 1,168 properties 5,000 times with both repeats together. The release comparison separately resamples 292 properties 20,000 times.
+
+This retrospective revision preserved `MasVnrType=None` (864 sales) separately from eight unknowns, across CSV readers and the foundation-model worker. It reserved an unseen-category code for V1, removed V1's ID input, and required paired finite price vectors for scoring. All twelve corrected split audits are included in the report. {foundation_en} The ordered source split and the predeclared thresholds are retained. The historical 292 have already appeared in prior evaluations. [Protocol and revision history](protocol.md) · [Previous report](https://github.com/alperdigital/ML/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/README.md)
+
+The observed predictors include sale condition, month and reported remodeling dates. House 524, for example, records a 2008 remodel against a partial sale in 2007. The study benchmarks the recorded sale-time information. Using it for prospective appraisal requires an as-of feature policy and validation on later sales.
+
+## Foundation model and runtime
+
+TabPFNv2 predicts log1p sale price using homes with known prices as context. The worker inverts that transform to dollars. The registered setup uses the pinned regression checkpoint locally on CPU. Its SHA-256 is `2ab5a07d5c41dfe6db9aa7ae106fc6de898326c2765be66505a07e2868c10736`. The package version and weight hash are verified before scoring. [Pinned model](https://huggingface.co/Prior-Labs/TabPFN-v2-reg/tree/02a44705ff7790b50cded404bc59adb94da456a1) · [Training-paper reference](https://doi.org/10.1038/s41586-024-08328-6) · [Checkpoint and runtime record](results/tabpfn-runtime.json)
+
+## Reproduce from the repository root
+
+The benchmark used macOS on an eight-core Apple Silicon machine with 8 GiB RAM, a Python 3.9.6 environment for the comparison, and Python 3.12.14 for the TabPFN worker. Install a compatible OpenMP runtime for XGBoost and LightGBM on macOS. Point the two interpreters at separate environments.
+
+~~~sh
+python3.9 -m venv .venv-ames
+.venv-ames/bin/python -m pip install -r ames-v3/requirements.txt
+python3.12 -m venv .venv-pfn
+.venv-pfn/bin/python -m pip install -r ames-v3/requirements-tabpfn.txt
+export AMES_TABPFN_PYTHON="$PWD/.venv-pfn/bin/python"
+export TABPFN_MODEL_CACHE_DIR="$PWD/.ames-v3-work/weights"
+export AMES_TABPFN_PRED_CACHE="$PWD/.ames-v3-work/foundation-cache"
+export OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 VECLIB_MAXIMUM_THREADS=1
+mkdir -p "$TABPFN_MODEL_CACHE_DIR"
+curl --fail --location --output "$TABPFN_MODEL_CACHE_DIR/tabpfn-v2-regressor.ckpt" \
+  "https://huggingface.co/Prior-Labs/TabPFN-v2-reg/resolve/02a44705ff7790b50cded404bc59adb94da456a1/tabpfn-v2-regressor.ckpt"
+.venv-ames/bin/python ames-v2/benchmark.py --trial-history ames-v2/optuna-trials-20.json
+.venv-ames/bin/python ames-v2/compare_v1_v2.py
+.venv-ames/bin/python ames-v3/run.py --jobs 3
+.venv-ames/bin/python ames-v3/compare_releases.py
+.venv-ames/bin/python ames-v3/render_portfolio.py
+.venv-ames/bin/python ames-v3/portfolio-draft/render_final_readmes.py --write
+.venv-ames/bin/python -m unittest discover -s ames-v2
+.venv-ames/bin/python -m unittest discover -s ames-v3
+.venv-ames/bin/python ames-v3/predict.py --version v2 --holdout-id 899
+.venv-ames/bin/python ames-v3/predict.py --version v3 --input data/test.csv --id 1461
+~~~
+
+The five-fold V2 and nested V2 prices for sale 899 are respectively {house_v2} and {nested_house_v2} $ (Turkish number formatting). Use `--version v2-nested` for the latter. `--save-bundle` stores a local fit, and `--bundle` reuses it. Older fits with a different input interpretation must be refitted. For a historical ID, a recipe that contains TabPFN replays the ordered 292-house feature batch and extracts the requested sale. An external CSV prices the single selected row. Batch size can affect floating-point rounding. With fresh directories the nested experiment performs a full search and foundation inference. [All 292 three-version predictions](results/three-version-holdout.csv)
+
+## Published evidence
+
+- [Metrics, intervals, subgroups and promotion decision](results/summary.json)
+- [Repeated outer predictions](results/outer-predictions.csv.gz), [forward-year predictions](results/temporal.csv) and [historical predictions](results/final.csv)
+- [Per-split trials, candidate scores and cross-fitted blend weights](results/split-audits.json.gz)
+{query_receipt}- [Reproduction of the archived V2 branch, with its original input interpretation](results/reference-check.json)

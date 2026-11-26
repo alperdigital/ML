@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 
-from .data_preprocessing import DataPreprocessor
+from .data_preprocessing import DataPreprocessor, MISSING_CATEGORY
 from .feature_engineering import FeatureEngineer
 
 
@@ -22,6 +22,8 @@ def fill_validation(preprocessor, train, validation, filled_train):
                 groups = train.groupby("Neighborhood")[col].median()
                 replacement = validation["Neighborhood"].map(groups).fillna(overall)
             validation[col] = validation[col].fillna(replacement)
+        elif rule == "Unknown":
+            validation[col] = validation[col].fillna(MISSING_CATEGORY)
         elif rule in ("None", "Zero", "Typ"):
             if validation[col].isna().any():
                 validation[col] = validation[col].fillna({"None": "None", "Zero": 0, "Typ": "Typ"}[rule])
@@ -53,7 +55,7 @@ class TreeFeatures:
         if "SalePrice" in raw:
             raise ValueError("Pass SalePrice separately from the feature matrix")
         pp = DataPreprocessor()
-        self.raw_train = raw.copy()
+        self.raw_train = raw.drop(columns="Id", errors="ignore").copy()
         self.filled_train = pp.fill_missing_values(self.raw_train)
         retained = pp.remove_outliers(self.filled_train.assign(SalePrice=target))
         prices = retained.pop("SalePrice")
@@ -63,6 +65,7 @@ class TreeFeatures:
         return matrix, prices
 
     def transform(self, raw):
+        raw = raw.drop(columns="Id", errors="ignore")
         if set(raw.columns) != set(self.raw_train.columns):
             raise ValueError("Input columns must match the training schema")
         pp = DataPreprocessor()

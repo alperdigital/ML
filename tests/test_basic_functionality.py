@@ -65,6 +65,10 @@ def test_metrics():
         assert 'rmsle' in metrics
         assert 'rmse' in metrics
         assert 'mae' in metrics
+        assert calculate_metrics(y_true.reshape(-1, 1), y_pred) == metrics
+        for invalid in ([100., np.nan], [np.inf, 100.]):
+            with np.testing.assert_raises(ValueError):
+                calculate_metrics(invalid, [100., 100.])
         
         print("  ✓ calculate_metrics works")
         return True

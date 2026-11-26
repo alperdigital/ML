@@ -1,0 +1,47 @@
+.article-hero {padding-block: clamp(3rem, 8vw, 6.8rem) clamp(2.5rem, 5vw, 4.2rem);}
+.article-hero h1 {font-size: clamp(3rem, 7.5vw, 6.7rem); line-height: .99; letter-spacing: -.07em; margin: 1.35rem 0 1.8rem;}
+.article-hero em {color: var(--blue); font-style: normal;}
+.standfirst {max-width: 43rem; font-size: clamp(1.12rem, 2vw, 1.45rem); line-height: 1.55;}
+.author-line, .contents {font-size: .9rem; color: var(--grey);}
+.author-line span {margin-inline: .3rem;}
+.article-layout {display: grid; grid-template-columns: minmax(10rem, .85fr) minmax(0, 3fr); gap: clamp(2rem, 7vw, 6rem); align-items: start; border-top: 1px solid var(--line);}
+.contents {position: sticky; top: 5.2rem; padding-top: 2rem; display: grid; gap: .3rem;}
+.contents strong {margin-bottom: .45rem; color: var(--ink);}
+.contents a {width: fit-content; padding-block: .25rem; text-underline-offset: .2rem;}
+.contents a:hover, .longread [aria-current="page"] {color: var(--blue); text-decoration: underline;}
+.chapters {max-width: 48rem; font-size: 1.05rem; line-height: 1.69;}
+.chapters section {padding-block: clamp(2.2rem, 5.5vw, 4.8rem); border-bottom: 1px solid var(--line); scroll-margin-top: 1rem;}
+.chapters h2 {font-size: clamp(2rem, 4.2vw, 3.2rem); line-height: 1.09; letter-spacing: -.05em; margin: 0 0 1.35rem; max-width: 20ch;}
+.chapters .overline {margin: 0 0 1.1rem;}
+.chapters p {margin: .75rem 0 1rem;}
+.chapters h3 {font-size: 1.18rem; letter-spacing: -.025em; line-height: 1.4; margin: 0;}
+.chapters code {font-size: .86em; overflow-wrap: anywhere;}
+.split-figure, .house-prices {display: flex; flex-wrap: wrap; gap: 1rem 3rem; border-block: 1px solid var(--line); margin: 1.6rem 0; padding: 1.15rem 0;}
+.split-figure div {display: flex; align-items: center; gap: .9rem;}
+.split-figure strong {font-variant-numeric: tabular-nums; font-size: clamp(2rem, 4vw, 3rem); color: var(--blue); letter-spacing: -.055em;}
+.split-figure span, .house-prices dt {line-height: 1.35; font-size: .87rem; color: var(--grey);}
+.margin-note, .technical-note {margin: 1.6rem 0; padding: 1rem 1.4rem; background: #edf1f5; border-left: 3px solid var(--blue);}
+.margin-note p:last-child, .technical-note p:last-child {margin-bottom: 0;}
+.technical-note summary {cursor: pointer; font-weight: 650;}
+.technical-note summary:focus-visible {outline: 2px solid var(--blue); outline-offset: .25rem;}
+.steps {padding-inline-start: 1.65rem; margin: 1.8rem 0;}
+.steps li {padding-left: .45rem; margin-block: 1.5rem;}
+.steps li::marker {color: var(--blue); font-weight: 650;}
+.steps p {margin: .35rem 0;}
+.decision-list div {border-top: 1px solid var(--line); padding: 1.2rem 0 .35rem;}
+.checks {padding-left: 1.4rem;}
+.checks li {margin-block: .9rem;}
+.house-prices dd {margin: .25rem 0 0; font-size: clamp(1.2rem, 2.6vw, 1.6rem); font-weight: 650; letter-spacing: -.045em; font-variant-numeric: tabular-nums;}
+.article-links, .stage-resources {display: flex; gap: .8rem 1.6rem; align-items: baseline; flex-wrap: wrap;}
+.chapters .article-links {margin-top: 1.6rem;}
+@media(max-width: 790px) {
+  .article-layout {grid-template-columns: minmax(0, 1fr); gap: 0;}
+  .contents {position: static; padding: 1.2rem 0; border-bottom: 1px solid var(--line); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .3rem 1rem;}
+  .contents strong {grid-column: 1 / -1;}
+  .chapters {font-size: 1rem;}
+}
+@media(max-width: 540px) {
+  .longread .head-inner nav a:last-child {display: inline;}
+  .longread .head-inner nav a:first-child {display: none;}
+  .house-prices {gap: .9rem 1.5rem;}
+}

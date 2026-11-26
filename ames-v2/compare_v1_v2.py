@@ -13,9 +13,10 @@ from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import KFold, train_test_split
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.ames_metrics import price_vectors
 from src.tree_features import TreeFeatures, fill_validation
 
-from benchmark import SEED, estimator, rmsle, package_versions
+from benchmark import INPUT_SCHEMA, SEED, estimator, rmsle, package_versions, read_ames_csv
 
 V1_SOURCE = "a1cf99b304c604125019a10b587613a5d3b1ee5c"
 V1_MODELS = ("xgboost", "lightgbm")
@@ -38,7 +39,7 @@ def v1_predict(name, Xtr, ytr, Xval):
     features = TreeFeatures()
     tr, target = features.fit_transform(Xtr, ytr)
     val = features.transform(Xval)
-    # V1 examples retain Id and train the tree regressors on raw dollars.
+    # The V1 tree family is fitted on raw dollar labels.
     wrapper = XGBoostModel if name == "xgboost" else LightGBMModel
     base = wrapper()
     params = dict(base.params, n_jobs=1)
@@ -56,7 +57,7 @@ def v2_predict(candidate, Xtr, ytr, Xval):
 
 
 def metrics(y, pred):
-    assert len(y) == len(pred) and np.isfinite(pred).all()
+    y, pred = price_vectors(y, pred)
     return {"rmsle": rmsle(y, pred), "r2": float(r2_score(y, pred)),
             "mae": float(mean_absolute_error(y, pred))}
 
@@ -66,13 +67,15 @@ def split_fingerprint(index):
 
 
 def run(data, published):
-    df = pd.read_csv(data)
+    df = read_ames_csv(data)
     y = df.pop("SalePrice")
     Xd, Xh, yd, yh = train_test_split(df, y, test_size=0.2, random_state=SEED)
     cv = list(KFold(n_splits=5, shuffle=True, random_state=SEED).split(Xd))
     ref = json.loads(Path(published).read_text())
     dataset_hash = hashlib.sha256(Path(data).read_bytes()).hexdigest()
     assert dataset_hash == ref["dataset_sha256"] and ref["seed"] == SEED
+    if ref.get("input_schema") != INPUT_SCHEMA:
+        raise ValueError("Rerun the five-fold V2 benchmark with the current Ames CSV interpretation")
     assert ref["folds"] == 5 and ref["trials"] == 20
     assert (len(df), len(Xd), len(Xh)) == (ref["rows"], ref["development_rows"], ref["holdout_rows"])
 
@@ -116,7 +119,8 @@ def run(data, published):
     for metric, value in winner["holdout"].items():
         np.testing.assert_allclose(value, ref["selected"]["holdout_"+metric], atol=1e-7, rtol=1e-7)
 
-    return dict(v1_source_commit=V1_SOURCE, v1_revision="v3-corrected-tree-features",
+    return dict(v1_source_commit=V1_SOURCE, v1_revision="v3-unknown-categories-masonry-no-id",
+                input_schema=INPUT_SCHEMA,
                 versions=dict(package_versions(), yellowbrick=version("yellowbrick")), seed=SEED,
                 dataset_sha256=dataset_hash, development_rows=len(Xd), holdout_rows=len(Xh),
                 development_index_sha256=split_fingerprint(Xd.index), holdout_index_sha256=split_fingerprint(Xh.index),

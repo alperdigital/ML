@@ -17,6 +17,7 @@ from sklearn.model_selection import train_test_split
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from src.ames_data import read_ames_csv
 from src.tree_features import TreeFeatures
 from src.models.xgboost_model import XGBoostModel
 from src.utils.metrics import print_metrics
@@ -33,8 +34,8 @@ def main():
     # Load data
     print("\n[1/5] Loading data...")
     try:
-        train = pd.read_csv('data/train.csv')
-        test = pd.read_csv('data/test.csv')
+        train = read_ames_csv('data/train.csv')
+        test = read_ames_csv('data/test.csv')
     except FileNotFoundError as e:
         print(f"❌ Hata: Veri dosyası bulunamadı: {e}")
         print("Lütfen data/ klasöründe train.csv ve test.csv dosyalarının olduğundan emin olun.")

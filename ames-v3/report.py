@@ -56,8 +56,9 @@ def _check(frame, name):
         raise ValueError(f"{name} lacks required columns: {sorted(missing)}")
     if frame.empty or frame["Id"].isna().any() or frame.duplicated(["Id", "repeat"]).any():
         raise ValueError(f"{name} requires one prediction per property in each repeat")
-    if frame.groupby("Id")["SalePrice"].nunique().max() != 1:
-        raise ValueError(f"{name} contains inconsistent labels for an Id")
+    identity = ["SalePrice", "YrSold", "Neighborhood"]
+    if frame.groupby("Id")[identity].nunique(dropna=False).gt(1).any().any():
+        raise ValueError(f"{name} contains inconsistent sale details for an Id")
 
 
 def _bootstrap(outer):
@@ -136,6 +137,13 @@ def summarize(outer, temporal, holdout):
         _check(frame, name)
     if set(outer["Id"]) & set(holdout["Id"]):
         raise ValueError("Development and historical holdout property IDs overlap")
+    sale_columns = ["SalePrice", "YrSold", "Neighborhood"]
+    sales = outer.drop_duplicates("Id").set_index("Id")[sale_columns]
+    future = temporal.set_index("Id")[sale_columns]
+    expected = sales.reindex(future.index)
+    same = expected.eq(future) | (expected.isna() & future.isna())
+    if not future.index.isin(sales.index).all() or not same.all().all():
+        raise ValueError("Temporal houses and sale details must match the development sales")
     cutoff = outer.drop_duplicates("Id")["SalePrice"].quantile([0.25, 0.50, 0.75]).to_numpy()
     primary = _partition(outer, cutoff)
     primary["paired_bootstrap"] = _bootstrap(outer)

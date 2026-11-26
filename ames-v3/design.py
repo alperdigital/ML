@@ -1,10 +1,13 @@
 """Predeclared train/evaluation indices and data identity."""
 import hashlib
+import sys
 from pathlib import Path
 
 import numpy as np
-import pandas as pd
 from sklearn.model_selection import KFold, train_test_split
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.ames_data import read_ames_csv
 
 DATA_SHA = "1e18addf81e5e4d347cc17ee6075bbe4a42b7fa26b9e5b063e8f692a5f929d41"
 
@@ -12,7 +15,7 @@ DATA_SHA = "1e18addf81e5e4d347cc17ee6075bbe4a42b7fa26b9e5b063e8f692a5f929d41"
 def load_data(path):
     if hashlib.sha256(Path(path).read_bytes()).hexdigest() != DATA_SHA:
         raise ValueError("The input bytes differ from the registered V2 reference CSV.")
-    df = pd.read_csv(path)
+    df = read_ames_csv(path)
     if not df.Id.is_unique or df.SalePrice.isna().any() or (df.SalePrice < 0).any():
         raise ValueError("Expected unique house IDs and nonnegative, complete targets.")
     return df

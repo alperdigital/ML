@@ -1,0 +1,51 @@
+# Ames Housing · Üç sürümde ev fiyatı tahmini
+
+Ames, Iowa'da satılan bir evin fiyatını mevcut konut bilgileriyle ne kadar iyi tahmin edebiliriz? İlk projede eksik alanları doldurup iki ağaç modeli eğittik. İkinci projede modelleri aynı koşullarda karşılaştırdık. Üçüncü projede bir yöntemi tercih etmek için gereken kanıtı ve bu tercihin maliyetini inceledik. [Etkileşimli portföy](https://alperdigital.github.io/ML/) · [Üç projenin adımları, kararları ve örnek satışlar](https://alperdigital.github.io/ML/proje-detaylari.html)
+
+## V1, V2 ve V3 aynı 292 evde
+
+Her satır aynı 292 satışın gerçek dolar fiyatlarıyla hesaplandı. Model tercihleri 1.168 geliştirme evinde yapıldı. Tablodaki V1 ve beş katlı V2, bu daldaki düzeltilmiş ve yeniden eğitilmiş sürümlerdir. V3, tüm geliştirme evlerinde seçilip ayarları kilitlenen {v3_model} ile temsil ediliyor.
+
+| Sürüm · seçilen model | RMSLE ↓ | Önceki sürüme göre RMSLE | MAE ↓ | Önceki sürüme göre MAE ($) | R² ↑ | Önceki sürüme göre R² |
+|---|---:|---:|---:|---:|---:|---:|
+{release_table}
+
+RMSLE, çiftlerin logaritmik fiyatları arasındaki sapmayı ölçer. MAE ortalama mutlak dolar hatasıdır. R², satış fiyatlarındaki değişkenliğin açıklanan payını ölçer. Tablodaki göreli RMSLE farkı ve R² puan farkı tam hassasiyetli tahminlerden hesaplandı. V1’den V3’e ortalama mutlak hata ev başına **{v1_to_v3_mae} ({v1_to_v3_mae_pct})** {mae_direction}.
+
+**Farkın belirsizliği.** V2 ve V3 tahminlerini aynı satış içinde eşleştirerek 20.000 yeniden örnekleme yaptık (tohum 42). V2’ye göre V3 için hesaplanan göreli RMSLE azalmasının koşullu %95 aralığı **{gain_interval}**. {gain_caveat} Ortalama dolar hatasındaki azalmanın aralığı **{mae_interval}**. Bu aralıklar sabit tahminler için geçerli. 292 satış önceki yayımlarda da incelendiği için sonuçlar geriye dönük bir karşılaştırmadır. [Tam hassasiyetli 292 tahmin](ames-v3/results/three-version-holdout.csv) · [Ölçümler, farklar ve aralıklar](ames-v3/results/three-version-holdout.json)
+
+## Denetimde bulunan hatalar
+
+1. **V1’de görülmemiş kategori.** Bir eğitim katında bulunmayan garaj kalitesi `Po`, 247 ve 515 numaralı evlerde eski kodla `Ex` sınıfına dönüşüyordu. Artık görülmemiş düzey ayrı bir kod alıyor. Kayıt numarası da V1 model girdilerinden çıkarıldı. İki ağacı bütün kimliklere 9.000 ekleyerek yeniden eğittiğimizde 292 tahminin her biri aynı kaldı.
+2. **“Kaplama yok” ile “bilinmiyor”.** Ham dosyada 864 ev için `MasVnrType=None` açıkça kaplama olmadığını, sekiz `NA` ise değerin bilinmediğini gösteriyor. Ortak 292 evde bu sayılar 187 ve 2. Eğitim, tek ev tahmini ve TabPFN işlemi artık kaynak dosyadaki ayrımı koruyor. Yeni girdilerle V2 aramaları ve V3 deneyleri baştan çalıştırıldı.
+3. **RMSLE’de evlerin yanlış eşleşmesi.** Tek sütunlu tablo ve tek boyutlu liste birlikte verildiğinde önceki hesap her evi her tahminle karşılaştırabiliyordu. Güncel hesap ev başına bir tahmini doğruluyor, ham dolar fiyatlarının gerçek ve tahmin edilen tarafına birer kez `log1p` uyguluyor. Eski V1 defterindeki çift logaritmalı yaklaşık **0,00945** değeri yalnızca tarihsel kayıttır. Tablodaki V1, iki sabit ağacın düzeltilmiş beş katlı karşılaştırmasından geliyor. [Ortak metrik](src/ames_metrics.py) · [V1 dönüşümleri](src/tree_features.py)
+
+## Sürümlerde hangi kararları aldık?
+
+- **V1 · Keşif.** Aykırı satış kuralını yalnızca eğitim evlerine uyguladık. Geliştirme kümesinde {v1_training_rows} satış kaldı. Yaşı satış ve yapım yıllarından hesapladık, yatak odalarını toplam oda sayısına ikinci kez eklemedik. Beş geliştirme katı XGBoost ve LightGBM arasından {v1_model} seçti. Testte diğer ağaç daha iyi görünse de seçimi koruduk. [V1 sonuçları](ames-v2/v1-v2-comparison.json)
+- **V2 · Mühendislik.** Ridge, XGBoost, LightGBM ve CatBoost için aile başına 20 Optuna denemesi yaptık. Her doğrulama bölümünün doldurma ve kodlama işlemleri kendi eğitim evlerinde öğrenildi. Türetilmiş özellikleri açık ve kapalı denedik. Portföy ve `--version v2` beş katlı seçimi kullanır. V3 araştırmasında üç iç katla yeniden ayarlanan karşılaştırıcıya `v2-nested` adı verilir. [V2 raporu ve yeniden çalıştırma](ames-v2/README.md) · [Arşivlenmiş V2 dalı](https://github.com/alperdigital/ML/tree/7473f585685b15cf886daa32041f8f293e887d1e)
+- **V3 · Araştırma.** 1.168 geliştirme evinin her biri iki defa eğitim dışında tahmin edildi. 2.336 tahminde RMSLE, iç içe sınanan V2 için **{outer_v2}**, V3 için **{outer_v3}** oldu. On dış bölüm, 2010 sınaması ve son seçim için toplam 960 iç Optuna denemesi yapıldı. Yapısal eksiklik, cephe bilgisi, gösterge sütunları ve karışımlar aynı bölmelerde sınandı. {foundation_tr} Karışım ağırlıkları her iç doğrulama katının bir yarısında öğrenilip diğerinde ölçüldü. {gate_text} [Protokol](ames-v3/protocol.md) · [Ayrıntılı V3 sonuçları](ames-v3/README.md)
+
+## Sitedeki fiyatı yeniden üretmek
+
+Depo kökünde, deneyin Python ortamında çalıştırın.
+
+~~~sh
+python ames-v3/predict.py --version v2 --holdout-id 899
+python ames-v3/predict.py --version v2-nested --holdout-id 899
+~~~
+
+899 numaralı evin gerçek satış fiyatı **{house_actual}**. Sitedeki beş katlı V2 **{house_v2}**, iç içe deneydeki V2 **{nested_house_v2} $** tahmin eder. TabPFN içeren V3 için `--holdout-id` aynı 292 evlik tahmin grubunu kullanır. Tek bir yeni ev için `--input ev.csv` çalıştırılır. Tekli ve toplu TabPFN hesaplarında küçük sayısal yuvarlama farkları görülebilir. [Evleri etkileşimli karşılaştır](https://alperdigital.github.io/ML/#ev-sec)
+
+Tam yeniden üretim sırası V2 araması, V1/V2 karşılaştırması, V3 deneyi, ortak tablo ve site rakamlarının oluşturulmasıdır. Aşağıdaki komutlar yeniden eğitme tamamlandıktan sonra yayımlanan dosyaları kontrol eder. [Ortam ve eğitim komutları](ames-v3/README.md#reproduce-from-the-repository-root)
+
+~~~sh
+python ames-v3/render_portfolio.py --check
+python tests/test_basic_functionality.py
+python -m unittest discover -s ames-v2
+python -m unittest discover -s ames-v3
+~~~
+
+## İlk sürümün arşivi
+
+İlk README’deki 0,9378 değeri R²’dir. Doğru fiyatlanan evlerin yüzdesi olarak yorumlanamaz. Kökteki eski proje özetleri ve defterler ile `proje-main/` ve `proje-deriniz/` klasörleri V1 geliştirme geçmişini saklar. Bu belgelerdeki örneklemler ve metrik uygulamaları farklıdır. [Özgün V1](https://github.com/alperdigital/ML/tree/a1cf99b304c604125019a10b587613a5d3b1ee5c) · [Bu düzeltmeden önceki karşılaştırma](https://github.com/alperdigital/ML/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/README.md)

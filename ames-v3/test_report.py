@@ -47,6 +47,11 @@ class ReportTests(unittest.TestCase):
         b = _bootstrap(self.outer.sample(frac=1, random_state=42))
         self.assertEqual(a, b)
 
+    def test_temporal_sales_must_match_development_houses_and_labels(self):
+        for altered in (self.held, self.dev.assign(SalePrice=lambda d: d.SalePrice + 1)):
+            with self.assertRaisesRegex(ValueError, "Temporal houses"):
+                summarize(self.outer, altered, self.held)
+
 
 if __name__ == "__main__":
     unittest.main()

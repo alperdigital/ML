@@ -124,7 +124,7 @@ class V1Predictor(legacy.TreeFeatures):
     """XGBoost with the shared retrospective V1 preprocessor."""
 
     def predict(self, frame):
-        if getattr(self, "feature_schema_version", None) != 2:
+        if getattr(self, "feature_schema_version", None) != 3:
             raise ValueError("Stored V1 member predates the corrected features. Refit without --bundle.")
         return np.maximum(self.model.predict(self.transform(frame)), 0)
 
@@ -135,7 +135,7 @@ def fit_v1(X, y):
     from _ames_v1.models.xgboost_model import XGBoostModel
     predictor = V1Predictor()
     features, target = predictor.fit_transform(X, y)
-    predictor.feature_schema_version = 2
+    predictor.feature_schema_version = 3
     model = XGBoostModel(params=dict(XGBoostModel().params, n_jobs=1))
     model.train(features, target, verbose=False)
     predictor.model = model.model

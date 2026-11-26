@@ -3,6 +3,9 @@ import argparse
 import hashlib
 import json
 import os
+import subprocess
+import sys
+import tempfile
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -12,11 +15,14 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold
 
-from base_stage import build
+from base_stage import build, search_file
 from baselines import fit_v1, fit_v2, v1_oof
 from design import DATA_SHA, inner_splits, load_data, partitions
 from models_v3 import blend_predict, blend_weights, candidates, fit_model
 from recipe_cache import cached_oof
+from src.ames_data import INPUT_SCHEMA
+from src.ames_metrics import price_vectors
+from tabpfn_bridge import runtime_signature
 
 MEMBERS = ["v1_xgb", "v2_cat", "best_new"]
 REPORT_COLS = ["Id", "SalePrice", "YrSold", "Neighborhood"]
@@ -28,10 +34,10 @@ def write_json(path, value):
 
 
 def mean_fold_rmsle(y, predictions, splits):
-    predictions = np.asarray(predictions)
-    if predictions.shape != (len(y),) or not np.isfinite(predictions).all() or (predictions < 0).any():
+    if np.any(np.asarray(predictions, dtype=float) < 0):
         raise ValueError("Invalid price prediction in model selection")
-    errors = np.log1p(y.to_numpy()) - np.log1p(predictions)
+    y, predictions = price_vectors(y, predictions)
+    errors = np.log1p(y) - np.log1p(predictions)
     return float(np.mean([np.sqrt(np.mean(errors[val]**2)) for _, val in splits]))
 
 
@@ -59,7 +65,35 @@ def crossfit_blend(y, matrix, splits):
     return prices, audit
 
 
-def select_and_fit(train, search, work=None):
+def foundation_availability():
+    """Check prerequisites once, without consulting scores or labels."""
+    if not os.environ.get("TABPFN_MODEL_CACHE_DIR"):
+        return {"available": False, "reason": "TABPFN_MODEL_CACHE_DIR is unset"}
+    try:
+        runtime = json.loads(runtime_signature())
+    except FileNotFoundError as error:
+        return {"available": False, "reason": f"Missing {Path(error.filename).name}"}
+    except subprocess.CalledProcessError:
+        return {"available": False, "reason": "Worker Python lacks the required packages"}
+    required = candidates()["tabpfn_v2"]["version"]
+    if runtime[2]["tabpfn"] != required:
+        return {"available": False, "reason": f"Worker requires tabpfn=={required}"}
+    with tempfile.TemporaryDirectory(prefix="ames-tabpfn-check-") as tmp:
+        env = dict(os.environ, SKB_DATA_DIRECTORY=tmp, TABPFN_NO_BROWSER="1")
+        env.pop("PYTHONPATH", None)
+        probe = subprocess.run([env.get("AMES_TABPFN_PYTHON", sys.executable), "-c",
+                                "import torch; from tabpfn import TabPFNRegressor; "
+                                "from tabpfn.constants import ModelVersion; assert ModelVersion.V2"],
+                               env=env, capture_output=True, text=True)
+    if probe.returncode:
+        reason = (probe.stderr.strip().splitlines() or ["worker import failed"])[-1]
+        return {"available": False, "reason": reason}
+    return {"available": True, "runtime": runtime}
+
+
+def select_and_fit(train, search, work=None, foundation=None):
+    if foundation is None:
+        foundation = foundation_availability()
     if train.Id.tolist() != search["train_ids"]:
         raise ValueError("Cached V2 run uses different training house IDs")
     start = time.monotonic()
@@ -67,6 +101,8 @@ def select_and_fit(train, search, work=None):
     y = train.SalePrice
     splits = inner_splits(X)
     specs = candidates()
+    if not foundation["available"]:
+        del specs["tabpfn_v2"]
     cache_start = time.monotonic()
     cached = {k: cached_oof(X, y, splits, k, spec, work) for k, spec in specs.items()}
     actual_cache_seconds = time.monotonic() - cache_start
@@ -91,7 +127,8 @@ def select_and_fit(train, search, work=None):
               "v1_xgb": fit_v1(X, y)}
     models.update({"cand_"+k: fit_model(spec, X, y) for k, spec in specs.items()})
     models["best_new"] = models["cand_"+best]
-    audit = {"v2": winner, "v2_cat": cat, "best_new": best, "recipe": recipe,
+    audit = {"input_schema": INPUT_SCHEMA, "foundation": foundation,
+             "v2": winner, "v2_cat": cat, "best_new": best, "recipe": recipe,
              "specs": specs, "weights": weights.tolist(), "member_order": MEMBERS,
              "weight_selection": {"seed": BLEND_SPLIT_SEED, "folds": weight_folds},
              "inner_rmsle": costs, "new_inner_rmsle": candidate_cost, "candidate_oof_seconds": {k:v[1] for k,v in cached.items()}, "v2_configs": search["configs"],
@@ -114,20 +151,20 @@ def predict_all(models, audit, X):
     return predictions
 
 
-def evaluate(data, name, work, out):
+def evaluate(data, name, work, out, foundation=None):
     df = load_data(data)
     train_idx, val_idx, repeat, fold = partitions(df)[name]
-    search = joblib.load(Path(work)/f"{name}.joblib")
-    models, audit = select_and_fit(df.iloc[train_idx], search, work)
+    search = joblib.load(search_file(work, name, df.iloc[train_idx]))
+    models, audit = select_and_fit(df.iloc[train_idx], search, work, foundation)
     audit.update(task=name, train_n=len(train_idx), eval_n=len(val_idx))
     dest = Path(out)
     pieces = Path(work)/"evaluations"
     pieces.mkdir(parents=True, exist_ok=True)
     if name == "final":
         # Freeze the recipe to disk before opening the historical comparison.
-        write_json(dest/"frozen-final.json", {k:audit[k] for k in ("v2","v2_cat","best_new","recipe","weights","member_order","inner_rmsle","specs","v2_configs","weight_selection")})
+        write_json(dest/"frozen-final.json", {k:audit[k] for k in ("input_schema","foundation","v2","v2_cat","best_new","recipe","weights","member_order","inner_rmsle","specs","v2_configs","weight_selection")})
         inputs = df.drop(columns="SalePrice")
-        bundle = {"models":models, "audit":audit, "columns":inputs.columns.tolist(),
+        bundle = {"input_schema": INPUT_SCHEMA, "models":models, "audit":audit, "columns":inputs.columns.tolist(),
                   "dtypes": inputs.dtypes.astype(str).to_dict()}
         save_bundle(Path(work)/"development-fit.joblib", bundle)
     prediction_start = time.monotonic()
@@ -156,20 +193,23 @@ def run(data, work, out, jobs):
     dest.mkdir(parents=True, exist_ok=True)
     df = load_data(data)
     tasks = partitions(df)
+    foundation = foundation_availability()
     build(data, work, jobs)
     names = [name for name in tasks if name != "final"]
     with ProcessPoolExecutor(max_workers=jobs) as pool:
-        fs = [pool.submit(evaluate, data, name, work, out) for name in names]
+        fs = [pool.submit(evaluate, data, name, work, out, foundation) for name in names]
         for future in as_completed(fs):
             future.result()
     pieces = Path(work)/"evaluations"
     outer = pd.concat([pd.read_csv(pieces/f"{name}.csv") for name in names if name != "temporal"],ignore_index=True)
     temporal = pd.read_csv(dest/"temporal.csv")
     # Score the frozen training procedure before reading its historical predictions.
-    evaluate(data, "final", work, out)
+    evaluate(data, "final", work, out, foundation)
     holdout = pd.read_csv(dest/"final.csv")
     summary = summarize(outer, temporal, holdout)
     dev_idx, hist_idx, _, _ = tasks["final"]
+    summary["input_schema"] = INPUT_SCHEMA
+    summary["foundation"] = foundation
     summary["dataset_sha256"] = DATA_SHA
     summary["splits"] = {name:hashlib.sha256(np.asarray(idx,dtype="<i8").tobytes()).hexdigest()
                          for name,idx in [("development",dev_idx),("historical",hist_idx)]}

@@ -1,4 +1,6 @@
 """Predeclared fold-local Ames recipes; all public predictions are in dollars."""
+import time
+
 import numpy as np
 import pandas as pd
 from catboost import CatBoostRegressor
@@ -121,7 +123,9 @@ class FittedModel:
 
 def fit_model(spec, X, y):
     y = np.asarray(y, dtype=float)
-    if len(y) != len(X) or not np.isfinite(y).all() or (y < 0).any():
+    if y.ndim == 2 and y.shape[1] == 1:
+        y = y[:, 0]
+    if y.shape != (len(X),) or not np.isfinite(y).all() or (y < 0).any():
         raise ValueError("Training requires one finite nonnegative price per home")
     if spec["model"] == "tabpfn":
         from tabpfn_bridge import FoundationRegressor
@@ -149,14 +153,21 @@ def fit_model(spec, X, y):
     return FittedModel(features, encoder, learner)
 
 
-def crossfit(spec, X, y, folds):
+def crossfit(spec, X, y, folds, timing=None):
     pred = np.full(len(X), np.nan)
     seen = np.zeros(len(X), dtype=bool)
     y = np.asarray(y)
     for train, val in folds:
         if len(np.intersect1d(train, val)) or seen[val].any():
             raise ValueError("Overlapping fold assignments")
-        pred[val] = fit_model(spec, X.iloc[train], y[train]).predict(X.iloc[val])
+        model = fit_model(spec, X.iloc[train], y[train])
+        start = time.monotonic()
+        pred[val] = model.predict(X.iloc[val])
+        measured = getattr(model, "cached_inference_seconds", None)
+        if timing is not None and measured is not None:
+            # Keep the measured cold inference cost when this same batch was
+            # computed by another slot before candidate selection.
+            timing["cache_adjustment"] += measured - (time.monotonic() - start)
         seen[val] = True
     if not seen.all() or not np.isfinite(pred).all():
         raise ValueError("Missing or nonfinite cross-fitted predictions")
@@ -173,9 +184,12 @@ def _log_matrix(pred_matrix):
 def blend_weights(y, pred_matrix):
     """Fit nonnegative unit-sum weights to inner OOF predictions."""
     design = _log_matrix(pred_matrix)
-    target = np.log1p(np.asarray(y, dtype=float))
-    if target.shape != (len(design),) or not np.isfinite(target).all():
+    prices = np.asarray(y, dtype=float)
+    if prices.ndim == 2 and prices.shape[1] == 1:
+        prices = prices[:, 0]
+    if prices.shape != (len(design),) or not np.isfinite(prices).all() or (prices < 0).any():
         raise ValueError("Invalid blend target")
+    target = np.log1p(prices)
     n = design.shape[1]
     def objective(w):
         residual = design @ w - target
@@ -193,6 +207,6 @@ def blend_weights(y, pred_matrix):
 def blend_predict(pred_matrix, weights):
     design = _log_matrix(pred_matrix)
     weights = np.asarray(weights, dtype=float)
-    if len(weights) != design.shape[1] or (weights < 0).any() or not np.isclose(weights.sum(), 1.):
+    if weights.shape != (design.shape[1],) or (weights < 0).any() or not np.isclose(weights.sum(), 1.):
         raise ValueError("Expected nonnegative weights summing to one")
     return np.maximum(0, np.expm1(design @ weights))

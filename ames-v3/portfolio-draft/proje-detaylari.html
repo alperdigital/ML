@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f8f8f5">
+  <title>Proje detayları · Ames Housing — Abdullah Alper Baş</title>
+  <meta name="description" content="Ames Housing'in üç sürümünde veri hazırlama, model seçimi, logaritmik hata, bağımsız değerlendirme ve ev bazında doğrulama.">
+  <link rel="canonical" href="https://alperdigital.github.io/ML/proje-detaylari.html">
+  <link rel="icon" href="./mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./details.css">
+</head>
+<body class="longread">
+  <a class="skip" href="#icerik">İçeriğe geç</a>
+  <header class="site-head"><div class="wrap head-inner">
+    <a class="brand" href="./" aria-label="Ames Housing, ana sayfa"><img src="./mark.svg" width="30" height="30" alt="">Ames<span>Housing</span></a>
+    <nav aria-label="Ana menü"><a href="./#sonuclar">Sonuçlar</a><a href="./proje-detaylari.html" aria-current="page">Proje detayları</a></nav>
+    <a class="repo" href="https://github.com/alperdigital/ML/tree/v3">GitHub ↗</a>
+  </div></header>
+  <main id="icerik">
+    <header class="wrap article-hero">
+      <p class="overline"><i></i> Proje detayları</p>
+      <h1>Bir fiyat tahmininin<br><em>üç sürümü.</em></h1>
+      <p class="standfirst">Bir evin garaj kalitesi boşsa fiyatını nasıl tahmin ederiz? İlk sürümde bu soruyla başladım. İkinci sürümde modeller için ortak bir sınav kurdum. Üçüncüde, bulduğum iyileşmenin farklı evlerde tekrarlanıp tekrarlanmadığını araştırdım.</p>
+      <p class="author-line">Abdullah Alper Baş <span>·</span> Ames, Iowa <span>·</span> 2006–2010 satışları</p>
+    </header>
+    <div class="wrap article-layout">
+      <nav class="contents" aria-label="Proje detayları bölümleri">
+        <strong>Bu sayfada</strong>
+        <a href="#veri">Veri ve ortak sınav</a>
+        <a href="#proje-1">Proje 1 · İlk tahmin</a>
+        <a href="#proje-2">Proje 2 · Adil karşılaştırma</a>
+        <a href="#proje-3">Proje 3 · Araştırma</a>
+        <a href="#kararlar">Kararların karşılaştırması</a>
+        <a href="#denetim">Hatalar ve doğrulama</a>
+        <a href="#sonuc">Sonuç ve kullanım sınırı</a>
+      </nav>
+      <article class="chapters">
+        <section id="veri">
+          <h2>Veri ve ortak sınav</h2>
+          <p>Ames veri kümesinde satılmış her evin alanı, mahallesi, yapı özellikleri ve satış fiyatı bulunuyor. Tahmin etmek istediğimiz değer <code>SalePrice</code>, yani gerçekleşen dolar fiyatı. <code>Id</code> ise bir satırı kaynak kayıtla eşleştiriyor. Bir evin kayıt numarasını değiştirmek fiziksel özelliklerini değiştirmediği için numarayı model girdilerinden çıkarıyoruz.</p>
+          <div class="split-figure" role="group" aria-label="1.460 etiketli satışın bölünmesi">
+            <div><strong>1.168</strong><span>Model geliştirme<br>ve seçim</span></div>
+            <div><strong>292</strong><span>Üç sürümün ortak<br>son değerlendirmesi</span></div>
+          </div>
+          <p>1.460 etiketli satışı ham veri üzerindeyken aynı rastgelelik tohumu (42) ile ayırıyoruz. Geliştirme evleriyle veri dönüşümleri öğreniliyor ve modeller seçiliyor. Son tabloda her sürüm aynı 292 evin tamamı için bir dolar tahmini veriyor. Ayrıca yarışmanın 1.459 etiketsiz kaydı var. Bunlara tahmin üretilebilir. Gerçek fiyatları dosyada bulunmadığı için buradan doğruluk skoru çıkarılamaz.</p>
+          <aside class="margin-note"><strong>“Yok” ile “bilinmiyor” arasındaki fark</strong><p>Kaynak dosyada 864 evin cephe kaplaması açıkça <code>None</code> olarak kaydedilmiş. Bu, “kaplama yok” demek. Sekiz evin <code>NA</code> kaydı ise kaplama türünün bilinmediğini bildiriyor. 872 satırı tek bir eksik kategoriye çevirmek bu bilgiyi kaybettiriyordu. Yeni veri okuyucusu ayrımı eğitimde, tek ev tahmininde ve TabPFN işlemi sırasında taşıyor.</p></aside>
+          <a class="text-link" href="https://github.com/alperdigital/ML/blob/v3/data_description.txt">Ames veri sözlüğü ↗</a>
+        </section>
+        <section id="proje-1">
+          <p class="overline">Proje 1 · V1</p>
+          <h2>İlk çalışan fiyat tahmini</h2>
+          <p>İlk amaç, eksik ev bilgilerini bir modelin kullanabileceği hale getirip satış fiyatını tahmin etmekti. Bu nedenle her alan için anlamına uygun bir kural ve karşılaştırmak üzere iki ağaç modeli seçildi. Bugünkü V1 satırı, bu fikrin denetlenmiş ve ortak sınava uyarlanmış sürümüdür. İki ağacın ayarları özgün projeden geldi. Bu nedenle V1 ile V2 arasındaki fark hem veri hazırlama hem model seçimi hem de arama bütçesinin etkisini içeriyor.</p>
+          <ol class="steps">
+            <li><h3>Önce evleri ayır</h3><p>Ham satışları eğitim ve değerlendirme evlerine böldük. Mahalleye göre sokak cephesi ortancası, doldurma değerleri ve kategori listeleri yalnız eğitim evlerinde öğreniliyor. Satış fiyatına bağlı aykırı değer kuralları yalnız eğitimde çalışıyor. Çok büyük ama ucuza satılmış bir ev testteyse hatası sonuca tam olarak giriyor.</p></li>
+            <li><h3>Özelliğin ne anlattığını kontrol et</h3><p>Yaş, satış yılından yapım yılının çıkarılmasıyla bulunuyor. Örneğin 1 numaralı ev 2003’te yapıldı, 2008’de satıldı, yani satış sırasında 5 yaşındaydı. Eve ait toplam 8 oda, 3 yatak odasını zaten içeriyor. Bu iki gerçek, yaşı kodlanmış yıldan hesaplama ve yatak odalarını iki kez sayma hatalarını ortaya çıkardı.</p></li>
+            <li><h3>Yeni kategoriyi belirsiz bırak</h3><p>Bir eğitim bölümünde garaj kalitesi “kötü” hiç görülmeyebilir. Eski kod böyle bir evi alfabetik listedeki ilk kaliteye, “mükemmel”e taşıyordu. Bu durum 247 ve 515 numaralı evlerde doğrulama sırasında gözlendi. Ayrılmış bilinmeyen koduyla bu evlere eğitimde gördüğümüz bir sınıfın etiketi verilmiyor. Hiç görülmemiş bir kalitenin fiyat etkisini bu örneklerden tek başına öğrenemeyiz.</p></li>
+            <li><h3>İki modeli aynı kuralla seç</h3><p>XGBoost ve LightGBM sabit ayarlarla dolar fiyatına eğitildi. Beş geliştirme bölümündeki ortalama RMSLE hangi modelin V1’i temsil edeceğini belirledi. Seçilen model <strong data-result="v1_model">LightGBM</strong>. Tarihsel sinir ağı denemesi KAN bu iki adaylı karşılaştırmanın dışında tutuldu.</p></li>
+          </ol>
+          <aside class="margin-note"><strong>Testte başka bir aday daha iyi çıkarsa?</strong><p>V1’in beş geliştirme katında <span data-result="v1_model">…</span> ortalama <span data-result="v1_cv">…</span> RMSLE ile öne geçti. Sonradan bakınca aynı 292 evde diğer adayın (<span data-result="v1_other">…</span>) RMSLE değeri <span data-result="v1_other_holdout">…</span>, seçilmiş modelinki <span data-result="v1_rmsle">…</span> oldu. Sonucu gördükten sonra model değiştirmek, 292 satışın fiyatlarını seçim kararına katardı. Bu nedenle tablo geliştirme evlerinde seçilen modeli gösteriyor.</p></aside>
+          <details class="technical-note"><summary>Teknik ayrıntı · Logaritma hatası nereden geldi?</summary>
+            <p>Bir eski Optuna defterinde satış fiyatına önce <code>log1p</code> uygulanmış, ardından aynı ölçekteki gerçek ve tahmini değerler tekrar logaritma alan bir hata fonksiyonuna verilmişti. Böyle elde edilen yaklaşık 0,00945 değeri farklı bir niceliktir. Başka bir keşif defterinde de dolar cinsinden RMSE üreten bir fonksiyon “RMSLE” adını taşıyordu. Güncel tablo için tahminler ham dolar fiyatlarıyla eşleştirilir, iki tarafa birer kez <code>log1p</code> uygulanır, kare farkların ortalamasının karekökü alınır.</p>
+            <a class="text-link" href="https://github.com/alperdigital/ML/blob/a1cf99b304c604125019a10b587613a5d3b1ee5c/proje-deriniz/Untitled-1.ipynb">Çift logaritmalı Optuna defteri ↗</a> · <a class="text-link" href="https://github.com/alperdigital/ML/blob/a1cf99b304c604125019a10b587613a5d3b1ee5c/Untitled1_BEFORE_CURSOR.ipynb">RMSE hesabının bulunduğu ilk defter ↗</a>
+          </details>
+          <a class="text-link" href="https://github.com/alperdigital/ML/blob/v3/src/tree_features.py">V1 eğitim ve dönüşüm kodu ↗</a>
+        </section>
+        <section id="proje-2">
+          <p class="overline">Proje 2 · V2</p>
+          <h2>Modeller için adil bir karşılaştırma</h2>
+          <p>İlk projede iyi görünen bir skor, modelin, kullanılan özelliklerin ve veri bölmesinin etkisini birlikte taşıyordu. İkinci projede aynı evleri, aynı ölçütü ve aynı arama bütçesini sabitledik. Böylece bir model tercihini tekrar deneyerek savunmak mümkün oldu.</p>
+          <ol class="steps">
+            <li><h3>Her eğitim bölümünün kendi dönüşümlerini öğren</h3><p>Sayısal alanlarda ortancayla doldurma, eksik işareti ve ölçekleme uygulanır. Kategorik alanlarda eksik etiketleri ve ayrı gösterge sütunları kullanılır. Bir doğrulama evindeki yeni kategori eğitimdeki sözlüğü değiştirmez. İsteğe bağlı özellik grubunda toplam alan ve yaş gibi hesaplar bulunur. V2’nin toplam banyo değişkeni tam banyoları sayar.</p></li>
+            <li><h3>Dört aileyi ve basit bir referansı dene</h3><p>Ridge doğrusal bir başlangıç sunar. XGBoost, LightGBM ve CatBoost ağaç topluluklarıyla doğrusal olmayan ilişkileri öğrenir. Sabit tahmin veren bir referans, ev özelliklerini öğrenmenin karşılığını görmeye yarar. Modeller logaritmik satış fiyatına eğitilir; çıktı <code>expm1</code> ile tekrar dolara çevrilir.</p></li>
+            <li><h3>Arama bütçesini baştan belirle</h3><p>Optuna, dört ailenin her biri için 20 ayar denedi. Her deneme aynı beş doğrulama bölümünde değerlendirildi. Bir aile için bulunan ayarlarla türetilmiş özellikleri açık ve kapalı tutarak iki sürüm karşılaştırıldı. Bu ikinci aşama, özellik grubunun o ayarlardaki etkisini gösterir. Toplam 80 arama denemesinin kaydı saklanır.</p></li>
+            <li><h3>Seçilen modeli bir satışta yeniden üret</h3><p>Geliştirme verisinde seçilen <strong data-result="v2_model">CatBoost</strong> tüm geliştirme evleriyle eğitilir. Sitede bir kayıt seçtiğinizde <code>--version v2</code> komutunun üreteceği fiyatı görürsünüz. V3 deneyinde bu yöntem üç iç bölümde yeniden ayarlanır ve <code>v2-nested</code> adıyla izlenir.</p></li>
+          </ol>
+          <aside class="margin-note"><strong>Türetilmiş özellikleri neden birlikte denedik?</strong><p>Alanı ve yaşı doğrudan vermek, modelin bu ilişkileri daha kolay öğrenmesini sağlayabilir. Kazanan modelde bu özellik grubu <span data-result="v2_feature_choice">…</span> tutulduğunda ortalama doğrulama RMSLE’si <span data-result="v2_cv">…</span>, diğer durumda <span data-result="v2_other_cv">…</span> oldu. Burada yalnızca özellik grubunu değiştirdik ve model ayarlarını sabit tuttuk.</p></aside>
+          <details class="technical-note"><summary>Teknik ayrıntı · Üç ölçüt birlikte ne söylüyor?</summary>
+            <p><strong>RMSLE</strong>, fiyat ölçeğindeki oransal sapmaya duyarlıdır. <strong>MAE</strong>, her satıştaki mutlak dolar hatasının ortalamasıdır. <strong>R²</strong>, fiyatların ortalamaları etrafındaki değişkenliğini modelin ne kadar açıkladığını gösterir ve büyük dolar sapmalarına özellikle duyarlıdır. İki modelin sıralaması ölçüte göre değişebilir. R²’yi “doğru fiyatlanan evlerin yüzdesi” olarak okumak yanıltır.</p>
+            <p>Hesaplamada her ev yalnızca kendi tahminiyle eşleşir. Yeni testler, tahmini liste ya da tek sütunlu tablo olarak vermenin aynı skoru ürettiğini doğrular. Eşleşmeyen uzunluklar, çok sütunlu girişler ve sonlu olmayan fiyatlar hata üretir.</p>
+          </details>
+          <a class="text-link" href="https://github.com/alperdigital/ML/blob/v3/ames-v2/optuna-trials-20.json">80 denemenin kayıtları ↗</a>
+        </section>
+        <section id="proje-3">
+          <p class="overline">Proje 3 · V3</p>
+          <h2>İyileşme farklı evlerde tekrarlanıyor mu?</h2>
+          <p>Bir modelin tek bir bölmede öne çıkması, onu başka evlerde de tercih etmek için sınırlı kanıt veriyor. Üçüncü projede değerlendirdiğimiz şey bir seçim yöntemi. Her turda yalnızca o turdaki eğitim satışlarını kullanarak en baştan karar veriyoruz. Ardından bu kararın sonucunu dışarıda tuttuğumuz evlerde ölçüyoruz.</p>
+          <ol class="steps">
+            <li><h3>Seçim ve sınavı iç içe kur</h3><p>1.168 geliştirme evini beş dış bölüme ayırdık ve bölmeyi başka bir tohumla tekrarladık. Böylece her ev için, o evi eğitimde görmemiş iki tahmin elde ettik. Her dış bölümün içinde üç ayrı doğrulama katı var. V2'nin dört modeli kendi ayarlarını bu iç katlarda yeniden aradı. On dış sınava, 2010 sınaması ve son seçimin eklenmesiyle 12 ayrı arama ve 960 Optuna denemesi oluştu.</p></li>
+            <li><h3>Bir seferde bir veri kararını değiştir</h3><p>Bir evin şömine sayısı sıfırsa ve kalite alanı boşsa “şömine yok” sonucuna ulaşabiliriz. Şömine sayısı da bilinmiyorsa aynı çıkarımı yapamayız. CatBoost deneylerinde önce kategori gösterimini, sonra bu tür yokluk kurallarını karşılaştırdık. Sokak cephesini genel ortancayla mı, mahalle ortancasıyla mı doldurmalı? Değerin başlangıçta eksik olduğunu bildiren ayrı bir sütun yararlı mı? Bu iki tercihin dört birleşimini aynı evlerde ölçtük. Ridge'i de tam özellik grubuyla denedik.</p></li>
+            <li><h3>Hazır eğitilmiş bir modeli aynı sınava al</h3><p>TabPFNv2, tablo biçimindeki görevler için önceden eğitilmiş bir model. Bu projede her evin 79 özgün özelliğini ve o turdaki eğitim evlerinin logaritmik fiyatlarını kullanıyor. Özel şömine, cephe ve banyo dönüşümleri diğer adaylara ait. Sabit model dosyasının parmak izi kaydedildi. Farklı bir ağırlık dosyasıyla elde edilecek sonuç ayrı bir deney olur.</p></li>
+            <li><h3>Birden çok model kullanmanın karşılığını ölç</h3><p>V1 XGBoost, iç aramada ayarlanmış V2 CatBoost ve en iyi yeni aday tek başlarına denendi. Bunların eşit veya öğrenilmiş ağırlıklarla birleştirilmesi ve iç aramada seçilen tam V2 çözümü de seçenekler arasındaydı. Karışımın ağırlıkları logaritmik fiyatlar üzerinden öğrenildi. En iyi tek model ile karışım arasındaki fark 0,0005 RMSLE içindeyse ek çalışma maliyetini azaltan tek model tercih edildi.</p></li>
+            <li><h3>Tercihi kilitle, sonra sonucunu ölç</h3><p>Geliştirme sınavında V3'e geçmek için RMSLE'nin iç içe sınanan V2'ye göre en az %2 azalması, dolar MAE artışının %1'in altında kalması gerekiyordu. Bu karara ayrıca iki ayrı gözlem eşlik ediyor. Geçmiş yıllarla eğitip 2010'da satılan 136 geliştirme evini tahmin ettik. Son olarak, tüm geliştirme evleriyle seçim yapıp saklanan 292 satışın fiyatlarını hesapladık.</p></li>
+          </ol>
+          <details class="technical-note"><summary>Teknik ayrıntı · Karışım ağırlıklarını nasıl sınadık?</summary>
+            <p>Bir iç doğrulama katını ikiye ayırdık. Temel modeller bu katın iki yarısını da eğitimde görmemişti. İlk yarının fiyatlarıyla ağırlıkları öğrenip ikinci yarıyı tahmin ettik, ardından yönü değiştirdik. Karışımla tek modelleri bu tahminler üzerinden karşılaştırdık. Son kullanım ağırlıkları, seçim tamamlandıktan sonra eğitimdeki tüm kat dışı tahminlerle yeniden hesaplandı. Dış sınav, aday ve ayar seçimi dahil bütün bu yöntemi birlikte ölçüyor.</p>
+          </details>
+          <aside class="margin-note"><strong>Deney ne gösterdi?</strong>
+            <p>İki tekrardaki 2.336 tahminde iç içe sınanan V2’nin RMSLE değeri <span data-result="outer_v2">…</span>, V3’ünki <span data-result="outer_v3">…</span> oldu. Yalnızca 2010 yılına yapılan ileri tarihli sınamada bu değerler sırasıyla <span data-result="temporal_v2">…</span> ve <span data-result="temporal_v3">…</span>. <span data-result="gate_text">…</span></p>
+            <p>Aynı CatBoost ayarlarında genel eksik etiketinden doğrulanmış yapısal yokluğa geçiş RMSLE’yi <span data-result="structural_delta">…</span>. Geliştirme evlerinde sokak cephesi bilinmeyen 217 satış vardı. Tüm eksik cephesi olan evler için mahalle ortancası kullanmak, genel ortancaya göre RMSLE’yi <span data-result="frontage_delta">…</span>. Bu ikinci karşılaştırmada eksiklik işareti kapalıydı.</p>
+          </aside>
+          <a class="text-link" href="https://github.com/alperdigital/ML/blob/v3/ames-v3/protocol.md">Deney protokolü ve düzeltmeler ↗</a>
+        </section>
+        <section id="kararlar">
+          <h2>Üç projede kararlar nasıl değişti?</h2>
+          <div class="decision-list">
+            <div><h3>Ölçülen başarı</h3><p><b>V1</b> eksik bilgilerle çalışan bir fiyat tahmini kurdu. <b>V2</b> hangi model ailesinin aynı koşullarda daha küçük hata yaptığını araştırdı. <b>V3</b> bir model seçme yönteminin eğitim evleri değiştiğinde nasıl davrandığını ölçtü.</p></div>
+            <div><h3>Eksik bir alanın anlamı</h3><p><b>V1</b> mülk bilgisine dayalı doldurma kuralları kullandı. <b>V2</b> tüm modelleri tekrarlanabilir bir dönüşüm hattından geçirdi. <b>V3</b> yapısal yokluğu tanımanın, mahalle bilgisinin ve eksiklik işaretinin fiyat hatasına ayrı katkılarını kontrollü deneylerle ölçtü.</p></div>
+            <div><h3>Model ve maliyet</h3><p><b>V1</b> sabit ayarlı iki ağacı denedi. <b>V2</b> dört aileye eşit arama bütçesi verdi. <b>V3</b> aynı aramayı her eğitim bölümünde yeniledi, sabit adayları ve model birleşimlerini ekledi. Bu ek hesaplamanın gerekçesi, tek bir iyi sonucu seçme riskini ölçebilmekti.</p></div>
+            <div><h3>Bir sonucu savunmak</h3><p><b>V1</b> için bir evin oda ve yaş hesabını kaynaktan kontrol edebiliyoruz. <b>V2</b> için seçilen ayarlardan tek ev tahminini yeniden üretebiliyoruz. <b>V3</b> için tüm katların tahminlerini, seçim kararını, model dosyasının kimliğini ve farkın belirsizlik aralığını inceleyebiliyoruz.</p></div>
+          </div>
+        </section>
+        <section id="denetim">
+          <h2>Hata bulduğumuzda neyi yeniden yaptık?</h2>
+          <p>Yapay zekâ destekli geliştirmede en önemli adımlardan biri, üretilen kodun veri hakkında ne varsaydığını gerçek kayıtla kontrol etmekti. Üç küçük örnek farklı türde sorunları görünür kıldı.</p>
+          <ul class="checks">
+            <li><b>Görülmemiş bir kalite.</b> Bir eğitim katının sözlüğünde bulunmayan <code>Po</code> için ayrılmış bir kod kullandık. Eğitim ve testte evlerin kayıt numaraları değiştirildiğinde V1'in aynı fiyatları verdiğini de denedik.</li>
+            <li><b>Girdinin yol boyunca korunması.</b> Ham dosyadaki <code>None</code> ile <code>NA</code> ayrımını eğitimden tahmin komutuna kadar taşıdık. Girdiler değiştiği için eski aramaları ve model tahminlerini kullanmak sonuçları karıştırırdı. Bu nedenle V2'nin aramalarını ve V3'ün iç içe deneylerini yeniden çalıştırdık.</li>
+            <li><b>Her eve tek fiyat.</b> 292 fiyatlık liste ile 292 satır, bir sütundan oluşan tablo aynı 292 evi anlatır. Önceki çıkarma işlemi bazı biçimlerde her evi her tahminle karşılaştırabiliyordu. Yeni ölçüm önce bire bir eşleşmeyi doğruluyor. Yayımlanan üç skoru da ham satış fiyatları ve kaydedilmiş 292 tahmin üzerinden tekrar hesaplıyoruz.</li>
+          </ul>
+          <p>Sitede bir ev seçildiğinde görünen V2 tahmini beş katlı yöntemden gelir. V3'ün kullandığı üç iç katlı V2 aynı satış için farklı fiyat üretebilir. Komut ve rapor bu iki modeli ayrı adlarla gösteriyor. Her evin kimliği, satış fiyatı ve sitede gösterilen üç tahminin sent karşılığı sonuç dosyasıyla kontrol ediliyor.</p>
+          <p>TabPFNv2’de aynı evi tek başına veya bir satış grubunda hesaplamak küçük sayısal farklar üretebiliyor. 622 evle kurulan bir geliştirme modelinde 1170 numaralı ev, 312 evle birlikte fiyatlandığında 524.989,61 $, tek başına fiyatlandığında 524.989,75 $ çıktı. Bu nedenle geçmiş bir ev için V3 komutu, bu model seçildiyse, özgün 292 evi aynı sırada ve fiyatları gizlenmiş olarak yeniden tahmin eder ve seçtiğiniz satırı gösterir. Kendi dosyanızdan yeni bir ev verirseniz tek ev tahmini alırsınız.</p>
+          <a class="text-link" href="https://github.com/alperdigital/ML/blob/v3/ames-v3/results/query-batch-check.json">Tekli ve toplu tahmin kontrolü ↗</a>
+        </section>
+        <section id="sonuc">
+          <h2>Bir evdeki fark ve genel sonuç</h2>
+          <p>899 numaralı ev <strong data-result="house_actual">…</strong> karşılığında satıldı. Aşağıdaki üç fiyat aynı evin aynı özellikleriyle hesaplandı. Tek satış, kullandığımız yöntemler arasındaki farkın büyüklüğünü görmenin bir yolu. Genel karşılaştırma 292 satışın tamamına dayanıyor.</p>
+          <dl class="house-prices">
+            <div><dt>Proje 1</dt><dd data-result="house_v1">…</dd></div>
+            <div><dt>Proje 2</dt><dd data-result="house_v2">…</dd></div>
+            <div><dt>Proje 3</dt><dd data-result="house_v3">…</dd></div>
+          </dl>
+          <p>Ortak 292 satışta V1'den V3'e geçerken ortalama mutlak dolar hatası ev başına <strong data-result="d31_mae">…</strong> azaldı. Aynı evler üzerinde V2'den V3'e RMSLE kazancının tahmini <strong data-result="d32_rmsle_pct">…</strong>. Evleri eşleştirerek hesapladığımız %95 aralığı <strong data-result="gain_interval">…</strong>. İki yöntemi karşılaştırırken bu aralığa da bakıyoruz.</p>
+          <p>Bu satışlar Ames'in 2006–2010 piyasasını anlatıyor. Eski sonuçları inceledikten sonra düzeltme yaptığımız için 292 ev geriye dönük bir sınamadır. Yeni bir şehirde veya bugünkü piyasada kullanmak için daha yeni ve bağımsız satışlarla doğrulama gerekir. 524 numaralı evin kaydında satış yılı 2007, yenileme yılı 2008 görünüyor. Satış öncesi değerleme yapmak isteyen birinin, o tarihte hangi bilgilerin erişilebilir olduğunu ayrıca doğrulaması gerekir.</p>
+          <p>Satış fiyatı hatasını ölçmek eksik bir cephenin gerçek uzunluğunu ne kadar doğru bulduğumuzu göstermez. Bu soru için bilinen özellik değerlerini saklayıp geri tahmin etmek gerekir.</p>
+          <div class="article-links"><a class="button" href="./#sonuclar">Üç sonucu karşılaştır <span aria-hidden="true">↗</span></a><a class="text-link" href="./#ev-sec">Başka bir ev seç →</a></div>
+        </section>
+      </article>
+    </div>
+  </main>
+  <footer><div class="wrap foot"><a class="brand" href="./">Ames<span>Housing</span></a><span>Abdullah Alper Baş</span><a href="#icerik">Başa dön ↑</a></div></footer>
+</body></html>

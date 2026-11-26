@@ -13,6 +13,7 @@ from pandas.api.types import is_integer_dtype, is_numeric_dtype, pandas_dtype
 from baselines import fit_v1, fit_v2
 from design import load_data, partitions
 from models_v3 import blend_predict, fit_model
+from src.ames_data import INPUT_SCHEMA, read_ames_csv
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,11 +30,15 @@ def selected_recipe(audit, version):
 
 def recommended_version(summary):
     # The promotion experiment evaluated its locally retuned V2 challenger.
+    if summary.get("input_schema") != INPUT_SCHEMA:
+        raise ValueError("Recommendation uses an incompatible Ames input schema. Use the corrected results.")
     return "v3" if summary["promote_v3"] else "v2-nested"
 
 
 def fit_recipe(training, audit, version):
     """Fit only the members used by the selected recipe; hyperparameters are frozen."""
+    if version in ("v2-nested", "v3") and audit.get("input_schema") != INPUT_SCHEMA:
+        raise ValueError("Frozen results use an incompatible Ames input schema. Use the corrected results.")
     y = training["SalePrice"]
     X = training.drop(columns=["SalePrice"])
     recipe = selected_recipe(audit, version)
@@ -54,7 +59,7 @@ def fit_recipe(training, audit, version):
             models[key] = fit_model(audit["specs"][audit["best_new"]], X, y)
         else:
             raise ValueError(f"Unsupported frozen member {key}")
-    return {"models": models, "audit": audit, "columns": X.columns.tolist(),
+    return {"models": models, "audit": audit, "columns": X.columns.tolist(), "input_schema": INPUT_SCHEMA,
             "dtypes": X.dtypes.astype(str).to_dict(), "fit_version": version}
 
 
@@ -99,35 +104,49 @@ def prepare_row(frame, columns, dtypes, house_id=None):
     return frame
 
 
-def price(bundle, row, version):
+def price(bundle, row, version, historical_inputs=None):
+    if bundle.get("input_schema") != INPUT_SCHEMA:
+        raise ValueError("Bundle uses an incompatible Ames input schema. Refit without --bundle.")
     models = bundle["models"]
     fit_version = bundle.get("fit_version")
-    # Bundles created before the release distinction called the nested fit "v2".
-    if fit_version == "v2" and "v2_release" not in models:
-        fit_version = "v2-nested"
     if version == "v2" and "v2_release" not in models:
         raise ValueError("Bundle lacks the published V2. Refit with --version v2 without --bundle.")
     if fit_version and fit_version != version:
         raise ValueError(f"Bundle fitted for {fit_version}, requested {version}")
-    recipe = selected_recipe(bundle["audit"], version)
-    if recipe in ("equal_blend", "weighted_blend"):
-        order = bundle["audit"]["member_order"]
-        members = np.column_stack([models[name].predict(row) for name in order])
-        weights = bundle["audit"]["weights"] if recipe == "weighted_blend" else np.full(len(order), 1/len(order))
+    if len(row) != 1:
+        raise ValueError("Select exactly one input house")
+    audit = bundle["audit"]
+    recipe = selected_recipe(audit, version)
+    is_blend = recipe in ("equal_blend", "weighted_blend")
+    order = audit["member_order"] if is_blend else [recipe]
+    features, position = row, 0
+    if historical_inputs is not None and version == "v3" and "best_new" in order:
+        if audit["specs"][audit["best_new"]]["model"] == "tabpfn":
+            # TabPFN's floating-point predictions can change slightly with query batch size.
+            # Replay the registered, ordered and unlabeled cohort used for the published price.
+            features = historical_inputs.loc[:, bundle["columns"]]
+            matching = np.flatnonzero(features.Id.to_numpy() == row.Id.iloc[0])
+            if len(matching) != 1:
+                raise ValueError("Historical input must contain the requested house exactly once")
+            position = matching[0]
+    if is_blend:
+        members = np.column_stack([models[name].predict(features) for name in order])
+        weights = audit["weights"] if recipe == "weighted_blend" else np.full(len(order), 1/len(order))
         pred = blend_predict(members, weights)
     else:
-        pred = np.asarray(models[recipe].predict(row), dtype=float)
-    if pred.shape != (1,) or not np.isfinite(pred[0]) or pred[0] < 0:
-        raise ValueError("Expected one finite nonnegative predicted price")
+        pred = np.asarray(models[recipe].predict(features), dtype=float)
+    if pred.shape != (len(features),) or not np.isfinite(pred).all() or np.any(pred < 0):
+        raise ValueError("Expected one finite nonnegative predicted price per input house")
     return {"Id": int(row.Id.iloc[0]), "version": version, "recipe": recipe,
-            "predicted_sale_price_usd": round(float(pred[0]), 2)}
+            "predicted_sale_price_usd": round(float(pred[position]), 2)}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument("--input", type=Path, help="Ames-format CSV (all 80 non-target columns)")
-    source.add_argument("--holdout-id", type=int, help="Price one of the 292 historical holdout sales by Id")
+    source.add_argument("--holdout-id", type=int,
+                        help="Reproduce a historical price by Id, using the original query batch for TabPFN")
     parser.add_argument("--id", type=int, help="Select one Id in --input")
     parser.add_argument("--version", choices=["recommended", "v2", "v2-nested", "v3"], default="recommended",
                         help="v2: published portfolio model; v2-nested: V3 experiment's V2 challenger")
@@ -154,7 +173,7 @@ def main():
         house_id = args.holdout_id
     else:
         # Keep literal spellings of numeric-looking categories from user files.
-        inputs = pd.read_csv(args.input, dtype=str)
+        inputs = read_ames_csv(args.input, dtype=str)
         house_id = args.id
     if args.bundle:
         # joblib files contain executable Python objects. Use your own local bundle.
@@ -171,7 +190,7 @@ def main():
         raise ValueError("Bundle has no input dtypes. Refit from the frozen result files")
     row = prepare_row(inputs, bundle["columns"], bundle["dtypes"], house_id)
     with redirect_stdout(sys.stderr):
-        prediction = price(bundle, row, version)
+        prediction = price(bundle, row, version, historical_inputs=inputs if args.holdout_id is not None else None)
     print(json.dumps(prediction, allow_nan=False))
 
 

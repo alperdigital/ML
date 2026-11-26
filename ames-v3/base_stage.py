@@ -7,6 +7,17 @@ import time
 import joblib
 
 from design import load_data, partitions, inner_splits
+from recipe_cache import fit_fingerprint
+
+
+def search_file(work, name, train):
+    X = train.drop(columns="SalePrice")
+    y = train["SalePrice"]
+    digest = fit_fingerprint(
+        X, y, inner_splits(X), {"trials": 20, "selection": "nested-v2"},
+        ["ames-v3/baselines.py", "ames-v2/benchmark.py", "src/ames_data.py", "src/ames_metrics.py"],
+        ["numpy", "pandas", "scikit-learn", "xgboost", "lightgbm", "catboost", "optuna", "joblib"])
+    return Path(work) / "searches" / f"{name}-{digest}.joblib"
 
 
 def base_task(data, name, work):
@@ -14,12 +25,15 @@ def base_task(data, name, work):
     df = load_data(data)
     train, _, _, _ = partitions(df)[name]
     training = df.iloc[train].copy()
+    destination = search_file(work, name, training)
+    if destination.exists():
+        return
+    destination.parent.mkdir(parents=True, exist_ok=True)
     y = training.pop("SalePrice")
     start = time.monotonic()
     result = select_v2(training, y, inner_splits(training))
     result["elapsed_seconds"] = time.monotonic() - start
     result["train_ids"] = training.Id.tolist()
-    destination = Path(work)/f"{name}.joblib"
     temp = destination.with_suffix(f".{os.getpid()}.tmp")
     joblib.dump(result, temp)
     temp.replace(destination)
@@ -30,7 +44,7 @@ def build(data, work, jobs):
     Path(work).mkdir(parents=True, exist_ok=True)
     tasks = partitions(load_data(data))
     with ProcessPoolExecutor(max_workers=jobs) as pool:
-        futures = [pool.submit(base_task, data, k, work) for k in tasks if not (Path(work)/f"{k}.joblib").exists()]
+        futures = [pool.submit(base_task, data, k, work) for k in tasks]
         for future in as_completed(futures):
             future.result()
 

@@ -63,6 +63,11 @@ class AmesModelTests(unittest.TestCase):
         self.assertTrue((weights >= 0).all())
         self.assertAlmostEqual(weights.sum(), 1.)
         np.testing.assert_allclose(blend_predict(prices, weights), expected, rtol=1e-6)
+        np.testing.assert_allclose(blend_weights(expected[:, None], prices), weights)
+        with self.assertRaises(ValueError):
+            blend_predict(prices, weights[:, None])
+        with self.assertRaises(ValueError):
+            blend_weights([-0.5, 90., 220.], prices)
 
 
 if __name__ == "__main__":

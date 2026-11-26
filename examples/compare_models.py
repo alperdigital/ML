@@ -10,12 +10,12 @@ This script demonstrates how to:
 
 import sys
 import os
-import pandas as pd
 from sklearn.model_selection import train_test_split
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from src.ames_data import read_ames_csv
 from src.tree_features import TreeFeatures
 from src.models.xgboost_model import XGBoostModel
 from src.models.lightgbm_model import LightGBMModel
@@ -33,7 +33,7 @@ def main():
     # Load and preprocess data
     print("\n[1/4] Loading and preprocessing data...")
     try:
-        train = pd.read_csv('data/train.csv')
+        train = read_ames_csv('data/train.csv')
     except FileNotFoundError as e:
         print(f"❌ Hata: Veri dosyası bulunamadı: {e}")
         print("Lütfen data/ klasöründe train.csv dosyasının olduğundan emin olun.")

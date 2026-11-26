@@ -1,101 +1,63 @@
 # Ames Housing V2
 
-An independent, reproducible benchmark. The [V1 source](https://github.com/alperdigital/ML/tree/a1cf99b304c604125019a10b587613a5d3b1ee5c) preserves the original experiment. This branch also includes its corrected retrospective comparison.
+V2 asks how well four model families predict the same sales when they receive identical training folds, feature definitions and search budgets. This page reports the corrected V2 procedure evaluated on the `v3` branch. The [archived V2 branch](https://github.com/alperdigital/ML/tree/7473f585685b15cf886daa32041f8f293e887d1e) preserves the original result. The [checkpoint comparison](../README.md) and the current V2 command use the corrected five-fold winner. The live portfolio displays the preceding completed three-version release while V3 is paused.
 
-## Run
+## From the CSV to a prediction
 
-From the repository root (Python 3.9+; 3.11 recommended):
+1. Verify the source file and fix the original seed-42 split. The 1,460 labeled sales comprise 1,168 development sales and the same 292 holdout sales used by V1 and V3. The Kaggle test file contains inputs only. House IDs are excluded from model features.
+2. Read the category literals before fitting any transformations. `MasVnrType=None` is an observed value meaning no masonry veneer (864 sales). The eight `NA` values have unknown veneer type. The source contains 677 confirmed absences and six unknowns in development, 187 and two respectively in the holdout. Previously the CSV parser combined both cases. These counts describe that column alone. [Data dictionary](../data_description.txt) · [CSV reader](../src/ames_data.py)
+3. Fit median numeric imputation, missing-value indicators and numeric scaling using only the training part of each fold. Encode categorical values with one-hot indicators and an explicit missing category. The corrected V2 model can learn separate indicators for confirmed masonry absence and an unknown type. Known absence and a genuinely unobserved value can carry different pricing information.
+4. Train a mean-log-price reference, Ridge, XGBoost, LightGBM and CatBoost. Keep the same categorical encoding across the four non-dummy families. Compare engineered versus original features at the same tuned hyperparameters. Engineered features include total area, full bathrooms above ground plus in the basement, and ages at sale. Half baths are also available as separate inputs. V1 and V3’s feature-engineered candidates include half-bath equivalents in their derived totals.
+5. Use five shuffled development folds, 20 seeded Optuna TPE trials per non-dummy family and mean fold RMSLE. These folds tune and select models, so their winning score can be optimistic. Map the training target with `log1p` and invert predictions with `expm1` before comparing prices. RMSLE pairs one nonnegative target with one predicted price and applies `log1p` once per price. The scoring code accepts vectors and single-column tables, rejects incompatible shapes and nonfinite prices, and floors negative predictions at zero. MAE is measured in dollars. R² is the fraction of variation in dollar sale prices explained against a mean-price reference. [Scorer](../src/ames_metrics.py)
+6. Choose the model, hyperparameters and feature setting by development CV. Refit on all development rows. Report the 292-sale holdout once for the selected comparison. Separately, the V1/V2 retrospective also reports other candidates descriptively. This historical holdout was already examined in previous releases.
 
-```sh
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install -r ames-v2/requirements.txt
-python -m unittest discover -s ames-v2 -v
-python ames-v2/benchmark.py --data data/train.csv --trials 20
-```
+## Search and feature ablation
 
-macOS may require the OpenMP runtime (`brew install libomp`) for XGBoost/LightGBM.
-
-Use `--trials 0` for defaults or `--models ridge` for a lightweight run. Output defaults to `ames-v2/results.json`. The Kaggle test set has no labels and is not used for evaluation.
-
-## Method
-
-- Fixed 80/20 split (seed 42), 5 shuffled development folds. Only the CV-selected configuration is evaluated on the held-out 20%.
-- Imputation, missingness indicators, numeric scaling and categorical encoding are fitted inside each fold. No target-dependent row removal, ID leakage, or train/test concatenation.
-- Log1p target training, inverse transformation to dollars, nonnegative prediction clipping and RMSLE calculated on raw-dollar labels and predictions. R² is not accuracy.
-- Dummy mean-log-price baseline, Ridge, XGBoost, LightGBM, CatBoost; one-hot categorical treatment for comparability.
-- Seeded Optuna TPE search minimizes mean development-fold RMSLE. Engineered features are ablated at the same tuned parameters. The published V2 feature named `TotalBath` counts full bathrooms above ground and in the basement. Half baths enter the model through their separate source columns. V1 and the V3 feature-engineered candidates use half-bath equivalents in their derived total.
-- JSON reports individual fold scores, dispersion, selected config, dataset SHA-256, environment versions and holdout metrics. CV used for tuning is selection-biased; no claim of nested CV.
-
-## Verification status
-
-`results-ridge.json` records the initial true-data smoke benchmark (1,460 rows, 1,168 development, 292 holdout, 5 folds, no tuning). Ridge with no engineered features had CV RMSLE 0.15006 and holdout RMSLE 0.13085, R² 0.92654 and MAE $15,663.18. This is not a full four-model benchmark. The preliminary holdout was observed but was not used to tune or alter the candidate search.
-
-The earlier /mnt/data prototype was unavailable. The V2 code was independently rewritten after reviewing the V1 README and repository assessment.
-
-## Full-model benchmark (26 November 2026)
-
-Actual V1 training data (1,460 rows; 1,168 development and 292 holdout). The recommended 20 Optuna trials per model were completed for all four models (80 total), with five-fold development CV and the same seed and split as the preliminary run.
-
-| Model | CV RMSLE, engineered | CV RMSLE, no engineered features |
+| Model | Five-fold RMSLE, engineered | Five-fold RMSLE, original |
 |---|---:|---:|
-| dummy | 0.39007 | — |
-| ridge | 0.14154 | 0.14132 |
-| xgboost | 0.12469 | 0.12577 |
-| lightgbm | 0.12518 | 0.12665 |
-| catboost | 0.11909 | 0.12141 |
+| Dummy | 0.39007 | — |
+| Ridge | 0.14154 | 0.14132 |
+| XGBoost | 0.12455 | 0.12858 |
+| LightGBM | 0.12474 | 0.12634 |
+| CatBoost | 0.11951 | 0.12203 |
 
-Selected by development CV: **catboost** (engineered=True; CV RMSLE **0.11909**). Best parameters: `{"iterations": 545, "depth": 4, "learning_rate": 0.05243180891902853}`.
+The five-fold development winner was **CatBoost** with engineered features and mean RMSLE **0.11951**. It used 932 iterations, depth 3 and a learning rate of 0.04964482136657893. [All configurations and fold scores](results.json) · [80 completed Optuna trials](optuna-trials-20.json)
 
-| Metric | 3 trials/model | 20 trials/model |
+| Same 292-sale holdout | 3 trials per family | 20 trials per family |
 |---|---:|---:|
-| Best development CV RMSLE | 0.12012 | 0.11909 |
-| Holdout RMSLE | 0.13018 | 0.12346 |
-| Holdout R² | 0.89192 | 0.89969 |
-| Holdout MAE (USD) | 15,344.18 | 14,993.51 |
+| RMSLE | 0.12878 | 0.12451 |
+| MAE in dollars | 15,304.13 | 15,042.20 |
+| R² | 0.90456 | 0.90390 |
 
-Holdout RMSLE decreased by **5.17%** relative to the 3-trial run. The same holdout was previously observed; it was not used for tuning or candidate selection, and this is not a new external validation set.
+The three-trial run used the same corrected data interpretation and evaluation rules. The untuned Ridge smoke benchmark produced holdout RMSLE 0.13085, MAE $15,663.18 and R² 0.92654. [3-trial run](results-3-trials.json) · [Ridge smoke run](results-ridge.json)
 
-- [Latest results — 20 trials/model](results.json): individual fold scores, winning configurations, dataset fingerprint and package versions.
-- [Optuna trial history](optuna-trials-20.json): all 80 completed trial scores and parameters.
-- [Archived 3-trial benchmark](results-3-trials.json).
-- Three unit tests passed again. Each model's 20 trial entries and best objective were verified against the benchmark output.
+## V1 and V2 on matched training and evaluation rows
 
-The historical V1 notebook scores used a different split. The corrected comparison below scores all candidates on the same sales.
+The corrected V1 trees retain their original hyperparameters and raw-dollar target. V1 excludes the record ID, separates no veneer from an unknown type and assigns code −1 to unseen values in label-encoded columns. A garage with a quality grade absent from training now has a distinct code. The one-hot columns for nominal categories follow the training schema. Outlier rules use labels only in training and retain 1,166 of the 1,168 development sales for the final V1 fit. Calendar years and the recorded room count are used for age and room features. The two V1 trees and each V2 model's CV-selected settings were evaluated on identical folds, and both versions' representatives were chosen by development RMSLE. The other models’ holdout results below are descriptive.
 
-## V1 vs V2 — same-split comparison (26 November 2026)
-
-This retrospective run uses the corrected V1 baseline from this branch. Both versions use the same raw Ames dataset (SHA-256 recorded in the JSON), identical ordered development/holdout row indices (1,168/292, seed 42), the same five shuffled development folds, and the same raw-dollar metrics: RMSLE, R² and MAE. Lower RMSLE and MAE are better; higher R² is better. Each version's representative model is selected by **mean development CV RMSLE**, never by holdout scores.
-
-### Results
-
-| Version | Model | CV RMSLE | Holdout RMSLE | Holdout R² | Holdout MAE (USD) |
+| Version | Family | Development CV RMSLE | Holdout RMSLE | MAE (USD) | R² |
 |---|---|---:|---:|---:|---:|
-| V1 (corrected) | XGBoost | 0.12690 | 0.13518 | 0.92347 | **14,581.96** |
-| V1 (corrected) | LightGBM (V1 CV winner) | 0.12243 | 0.13601 | **0.92592** | 15,047.65 |
-| V2 | Dummy | 0.39007 | 0.43324 | -0.01583 | 59,931.24 |
-| V2 | Ridge | 0.14132 | 0.13829 | 0.91310 | 16,730.05 |
-| V2 | XGBoost | 0.12469 | 0.13369 | 0.89169 | 15,674.02 |
-| V2 | LightGBM | 0.12518 | 0.13444 | 0.88251 | 16,118.42 |
-| V2 | CatBoost (V2 CV winner) | **0.11909** | **0.12346** | 0.89969 | 14,993.51 |
+| V1 | XGBoost | 0.12906 | 0.13050 | 14,204.40 | 0.92648 |
+| V1 | LightGBM **(CV winner)** | 0.12471 | 0.13679 | 15,225.01 | 0.92109 |
+| V2 | Dummy | 0.39007 | 0.43324 | 59,931.24 | -0.01583 |
+| V2 | Ridge | 0.14132 | 0.13829 | 16,730.14 | 0.91310 |
+| V2 | XGBoost | 0.12455 | 0.13650 | 15,825.58 | 0.90108 |
+| V2 | LightGBM | 0.12474 | 0.13476 | 16,114.17 | 0.88072 |
+| V2 | CatBoost **(CV winner)** | 0.11951 | 0.12451 | 15,042.20 | 0.90390 |
 
-### Version-level differences (CV-selected models)
+Moving from V1 LightGBM to V2 CatBoost, holdout RMSLE changed by **-8.98%**, MAE by **-182.81 USD** and R² by **-0.01719**. The comparison changes multiple decisions together, including the training target, preprocessing, search budget and selected family. It measures the complete procedures on these historical sales. V1’s original hyperparameters may reflect earlier work with these prices. V1’s KAN notebook remained outside its executable two-tree comparison. [Original V1 source](https://github.com/alperdigital/ML/tree/a1cf99b304c604125019a10b587613a5d3b1ee5c) · [Matched metric summary, parameters and split fingerprints](v1-v2-comparison.json)
 
-- V2 CatBoost reduced mean CV RMSLE by **2.73%** and holdout RMSLE by **9.23%** versus corrected V1 LightGBM.
-- V2's holdout MAE fell by **$54.15** and R² fell by **0.02623**. Among the candidates shown, corrected V1 LightGBM has the highest dollar R² and corrected V1 XGBoost has the lowest dollar MAE.
-- Holding the model family fixed, V2 XGBoost improved holdout RMSLE by 1.10% and V2 LightGBM by 1.16%. These comparisons combine changes to preprocessing and fitting.
+## Reproduce the measurements
 
-### Reproducibility and scope
+For the V2 benchmark alone, install [the V2 requirements](requirements.txt). The two-tree retrospective also needs Yellowbrick 1.5. For the complete comparison, use the dependency versions and supported environment in the [V3 setup instructions](../DEVAM.md). Run the following commands from the repository root.
 
 ```sh
-python -m pip install -r ames-v2/requirements.txt
-python -m pip install yellowbrick==1.5
+python ames-v2/benchmark.py --models ridge --trials 0 --output ames-v2/results-ridge.json
+python ames-v2/benchmark.py --trials 3 --output ames-v2/results-3-trials.json
+python ames-v2/benchmark.py --trials 20 --output ames-v2/results.json --trial-history ames-v2/optuna-trials-20.json
 python ames-v2/compare_v1_v2.py --data data/train.csv
 python -m unittest discover -s ames-v2 -v
+python ames-v3/predict.py --version v2 --holdout-id 899
 ```
 
-The corrected V1 baseline retains the raw-dollar target, ID input, outlier criteria, tree wrappers and original model parameters. The examples and comparison now share one training-only feature pipeline. It splits the raw sales first, learns missing-value statistics, applies price-based exclusions only to the training rows (two on the full development split), fits encoders and aligns nominal indicators to the training columns. Sale year, month and condition score retain their numeric meanings. Age is measured in calendar years and the total room count already includes bedrooms. All 292 holdout rows are scored. The [original source](https://github.com/alperdigital/ML/tree/a1cf99b304c604125019a10b587613a5d3b1ee5c) and [earlier comparison](https://github.com/alperdigital/ML/blob/7473f585685b15cf886daa32041f8f293e887d1e/ames-v2/v1-v2-comparison.json) remain available for provenance.
-
-V1's experimental KAN model is not part of the executable `examples/compare_models.py` and was not benchmarked here. Its historical notebook score is not treated as a comparable result. The V1 comparison therefore covers the original two executable tree baselines, not every V1 notebook variant. Historical V1 hyperparameters may have seen these data during earlier experiments; V1's tuning budget was not repeated or matched to V2's 20 trials/model, and neither version has a newly blinded external test set. V2's selected configurations were fixed from the preceding 20-trial run and their same-fold scores and CatBoost holdout metrics were reproduced. The additional holdout model rows are descriptive and were not used to select a winner.
-
-See [machine-readable results](v1-v2-comparison.json) for every model, fold-level RMSLE, training row counts, split fingerprints, parameters and dependency versions.
+The original V2 implementation was rewritten from the V1 project after the earlier scratch prototype was unavailable. The current `--version v2` uses this revised five-fold winner. The portfolio links its previous completed comparison to the matching source revision. `--version v2-nested` uses the independently retuned V2 challenger inside the V3 experiment. Historical bundles encoded veneer values differently. Refit from the current configuration to create a compatible bundle.
