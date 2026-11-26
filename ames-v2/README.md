@@ -62,3 +62,41 @@ Holdout RMSLE decreased by **5.17%** relative to the 3-trial run. The same holdo
 - Three unit tests passed again. Each model's 20 trial entries and best objective were verified against the benchmark output.
 
 No V1 score comparisons are claimed because its split and evaluation protocol differ.
+
+## V1 vs V2 — same-split comparison (26 November 2026)
+
+This is a new, retrospective comparison, not a juxtaposition of scores from the old README. Both versions use the same raw Ames dataset (SHA-256 recorded in the JSON), identical ordered development/holdout row indices (1,168/292, seed 42), the same five shuffled development folds, and the same raw-dollar metrics: RMSLE, R² and MAE. Lower RMSLE and MAE are better; higher R² is better. Each version's representative model is selected by **mean development CV RMSLE**, never by holdout scores.
+
+### Results
+
+| Version | Model | CV RMSLE | Holdout RMSLE | Holdout R² | Holdout MAE (USD) |
+|---|---|---:|---:|---:|---:|
+| V1 | XGBoost | 0.12655 | 0.13188 | **0.92344** | **14,478.22** |
+| V1 | LightGBM (V1 CV winner) | 0.12236 | 0.13832 | 0.92181 | 15,515.46 |
+| V2 | Dummy | 0.39007 | 0.43324 | -0.01583 | 59,931.24 |
+| V2 | Ridge | 0.14132 | 0.13829 | 0.91310 | 16,730.05 |
+| V2 | XGBoost | 0.12469 | 0.13369 | 0.89169 | 15,674.02 |
+| V2 | LightGBM | 0.12518 | 0.13444 | 0.88251 | 16,118.42 |
+| V2 | CatBoost (V2 CV winner) | **0.11909** | **0.12346** | 0.89969 | 14,993.51 |
+
+### Version-level differences (CV-selected models)
+
+- V2 CatBoost improves mean CV RMSLE by **2.68%** and holdout RMSLE by **10.74%** versus V1 LightGBM.
+- V2 reduces holdout MAE by **$521.96**, but its R² is **0.02211 lower**. V1 XGBoost has the best holdout R² and MAE across the displayed models. No universal V2 improvement is claimed.
+- Matched-model results are mixed: V2 XGBoost improves CV RMSLE by 1.47% but worsens holdout RMSLE by 1.37%; V2 LightGBM worsens CV RMSLE by 2.31% but improves holdout RMSLE by 2.81%.
+- The difference reflects the entire pipeline, model selection and tuning, not one isolated preprocessing technique.
+
+### Reproducibility and scope
+
+```sh
+python -m pip install -r ames-v2/requirements.txt
+python -m pip install yellowbrick==1.5
+python ames-v2/compare_v1_v2.py --data data/train.csv
+python -m unittest discover -s ames-v2 -v
+```
+
+The [comparison harness](compare_v1_v2.py) uses the V1 preprocessing, engineered features and XGBoost/LightGBM wrappers from [the unchanged V1 source commit](https://github.com/alperdigital/ML/commit/a1cf99b304c604125019a10b587613a5d3b1ee5c). The V1 executable example originally preprocesses and removes outliers before splitting and leaves nominal strings unencoded; the harness splits first, learns imputation statistics only from training rows, encodes/aligns dummy columns using the V1 helpers and keeps the V1 outlier rules local to training (1–2 removals per fold, 2 on the full development split). All 292 holdout rows are kept. V1 retains its original raw-dollar target, ID feature and historical default hyperparameters (only thread/verbosity settings changed). It does not apply Box-Cox or Rank1D because the executable tree comparison example does not use those stages.
+
+V1's experimental KAN model is not part of the executable `examples/compare_models.py` and was not benchmarked here. Its historical notebook score is not treated as a comparable result. The V1 comparison therefore covers the original two executable tree baselines, not every V1 notebook variant. Historical V1 hyperparameters may have seen these data during earlier experiments; V1's tuning budget was not repeated or matched to V2's 20 trials/model, and neither version has a newly blinded external test set. V2's selected configurations were fixed from the preceding 20-trial run and their same-fold scores and CatBoost holdout metrics were reproduced. The additional holdout model rows are descriptive and were not used to select a winner.
+
+See [machine-readable results](v1-v2-comparison.json) for every model, fold-level RMSLE, training row counts, split fingerprints, parameters and dependency versions. Five unit tests passed.
