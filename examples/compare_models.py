@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Example script: Compare all models (XGBoost, LightGBM, KAN)
+Example script: Compare the V1 tree models (XGBoost and LightGBM)
 
 This script demonstrates how to:
 1. Train multiple models
@@ -11,14 +11,12 @@ This script demonstrates how to:
 import sys
 import os
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.data_preprocessing import DataPreprocessor
-from src.feature_engineering import FeatureEngineer
+from src.tree_features import TreeFeatures
 from src.models.xgboost_model import XGBoostModel
 from src.models.lightgbm_model import LightGBMModel
 from src.utils.metrics import calculate_metrics
@@ -45,36 +43,14 @@ def main():
         print("❌ Hata: Veri dosyası boş!")
         return
     
-    preprocessor = DataPreprocessor()
-    
-    if 'SalePrice' not in train.columns:
-        raise ValueError("'SalePrice' column not found in training data")
-    
-    y_train = train['SalePrice']
-    X_train = train.drop('SalePrice', axis=1)
-    
-    X_train = preprocessor.fill_missing_values(X_train)
-    # Ensure indices align before concatenation
-    X_train = X_train.reset_index(drop=True)
-    y_train = y_train.reset_index(drop=True)
-    train_with_target = pd.concat([X_train, y_train], axis=1)
-    train_with_target = preprocessor.remove_outliers(train_with_target, target_col='SalePrice')
-    
-    if 'SalePrice' not in train_with_target.columns:
-        raise ValueError("'SalePrice' column missing after outlier removal")
-    
-    y_train = train_with_target['SalePrice']
-    X_train = train_with_target.drop('SalePrice', axis=1)
-    X_train = preprocessor.encode_categorical(X_train, fit=True)
-    
-    fe = FeatureEngineer()
-    X_train = fe.create_new_features(X_train)
-    
-    # Split data
-    X_train_split, X_val, y_train_split, y_val = train_test_split(
-        X_train, y_train, test_size=0.2, random_state=42
+    prices = train.pop("SalePrice")
+    X_fit, X_val_raw, y_fit, y_val = train_test_split(
+        train, prices, test_size=0.2, random_state=42
     )
-    
+    preparation = TreeFeatures()
+    X_train_split, y_train_split = preparation.fit_transform(X_fit, y_fit)
+    X_val = preparation.transform(X_val_raw)
+
     print("✓ Data prepared")
     
     # Train models

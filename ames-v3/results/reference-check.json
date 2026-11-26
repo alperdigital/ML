@@ -15,6 +15,7 @@
     "yellowbrick": "1.5"
   },
   "compared_file": "ames-v2/v1-v2-comparison.json",
+  "compared_file_at_commit": "7473f585685b15cf886daa32041f8f293e887d1e",
   "reproduced_file_sha256": "96db27d57dacf2889320cc0e332c34b13899fa15108c9431e5739289a6e80bcf",
   "byte_identical": true,
   "v2_catboost": {

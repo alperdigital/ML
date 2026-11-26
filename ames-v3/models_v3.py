@@ -90,7 +90,7 @@ class AmesFeatures:
             frame["LotFrontage"] = frame.LotFrontage.fillna(frame.Neighborhood.map(self.by_neighborhood))
         frame["LotFrontage"] = frame.LotFrontage.fillna(self.frontage)
 
-        # Same feature definitions for every recipe to isolate categorical handling.
+        # CatBoost and Ridge share these derived features. TabPFN uses input columns directly.
         frame["TotalSF"] = frame[["1stFlrSF", "2ndFlrSF", "TotalBsmtSF"]].sum(axis=1, min_count=3)
         frame["TotalBath"] = frame.FullBath + frame.BsmtFullBath + 0.5 * (frame.HalfBath + frame.BsmtHalfBath)
         frame["HouseAge"] = frame.YrSold - frame.YearBuilt

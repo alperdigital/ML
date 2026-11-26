@@ -1,10 +1,4 @@
-"""Retrospective comparison of V1's executable tree models and V2 on the same rows.
-
-The legacy example preprocesses before splitting and leaves nominal strings
-unencoded. This harness applies the V1 helpers only in training folds,
-fits missing-value statistics on training data, and aligns V1 dummy columns.
-It does not modify the legacy source or tune against the holdout.
-"""
+"""Compare the corrected retrospective V1 tree baseline and the released V2 on identical sales."""
 import argparse
 import hashlib
 import json
@@ -17,6 +11,9 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import mean_absolute_error, r2_score
 from sklearn.model_selection import KFold, train_test_split
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.tree_features import TreeFeatures, fill_validation
 
 from benchmark import SEED, estimator, rmsle, package_versions
 
@@ -34,60 +31,21 @@ def configure_v1_imports(root):
         sys.modules[package] = module
 
 
-def fill_validation(preprocessor, train, validation, filled_train):
-    """Apply the V1 missing-value rules without learning from validation."""
-    validation = validation.copy()
-    for col, rule in preprocessor.strategies.items():
-        if col not in validation:
-            continue
-        observed = train[col].dropna()
-        if rule == "Drop":
-            validation = validation.drop(columns=col)
-        elif rule == "NeighborhoodMedian":
-            groups = train.groupby("Neighborhood")[col].median()
-            overall = observed.median() if len(observed) else 0
-            replacement = validation["Neighborhood"].map(groups).fillna(overall)
-            validation[col] = validation[col].fillna(replacement)
-        elif rule in ("None", "Zero", "Typ"):
-            if validation[col].isna().any():
-                validation[col] = validation[col].fillna({"None": "None", "Zero": 0, "Typ": "Typ"}[rule])
-        elif rule == "Mode":
-            mode = observed.mode()
-            validation[col] = validation[col].fillna(mode.iloc[0] if len(mode) else 0)
-        elif rule in ("Median", "Mean"):
-            value = getattr(observed, rule.lower())() if len(observed) else 0
-            validation[col] = validation[col].fillna(value)
-    for col in filled_train.select_dtypes(include=np.number):
-        if validation[col].isna().any():
-            median = filled_train[col].median()
-            validation[col] = validation[col].fillna(0 if pd.isna(median) else median)
-    return validation
-
-
 def v1_predict(name, Xtr, ytr, Xval):
-    from _ames_v1.data_preprocessing import DataPreprocessor
-    from _ames_v1.feature_engineering import FeatureEngineer
     from _ames_v1.models.xgboost_model import XGBoostModel
     from _ames_v1.models.lightgbm_model import LightGBMModel
 
-    pp = DataPreprocessor()
-    filled = pp.fill_missing_values(Xtr)
-    val = fill_validation(pp, Xtr, Xval, filled)
-    train = pp.remove_outliers(filled.assign(SalePrice=ytr), target_col="SalePrice")
-    target = train.pop("SalePrice")
-    tr = pp.encode_categorical(train, fit=True)
-    val = pp.encode_categorical(val, fit=False)
-    fe = FeatureEngineer()
-    tr = pp.create_dummy_variables(fe.create_new_features(tr))
-    val = pp.create_dummy_variables(fe.create_new_features(val)).reindex(columns=tr.columns, fill_value=0)
+    features = TreeFeatures()
+    tr, target = features.fit_transform(Xtr, ytr)
+    val = features.transform(Xval)
     # V1 examples retain Id and train the tree regressors on raw dollars.
     wrapper = XGBoostModel if name == "xgboost" else LightGBMModel
     base = wrapper()
     params = dict(base.params, n_jobs=1)
     if name == "lightgbm":
         params["verbosity"] = -1
-    model = wrapper(params=params).train(tr.astype(float), target, verbose=False)
-    pred = model.predict(val.astype(float))
+    model = wrapper(params=params).train(tr, target, verbose=False)
+    pred = model.predict(val)
     return np.maximum(pred, 0), len(tr), params
 
 
@@ -158,7 +116,8 @@ def run(data, published):
     for metric, value in winner["holdout"].items():
         np.testing.assert_allclose(value, ref["selected"]["holdout_"+metric], atol=1e-7, rtol=1e-7)
 
-    return dict(v1_source_commit=V1_SOURCE, versions=dict(package_versions(), yellowbrick=version("yellowbrick")), seed=SEED,
+    return dict(v1_source_commit=V1_SOURCE, v1_revision="v3-corrected-tree-features",
+                versions=dict(package_versions(), yellowbrick=version("yellowbrick")), seed=SEED,
                 dataset_sha256=dataset_hash, development_rows=len(Xd), holdout_rows=len(Xh),
                 development_index_sha256=split_fingerprint(Xd.index), holdout_index_sha256=split_fingerprint(Xh.index),
                 cv_folds=5, v2_trials_per_model=ref["trials"], selected_by_cv=selected,

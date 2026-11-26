@@ -37,11 +37,12 @@ def test_data_preprocessor():
         
         # Test encoding
         data_cat = pd.DataFrame({
-            'quality': ['Ex', 'Gd', 'TA', 'Fa'],
-            'condition': ['Norm', 'Norm', 'Abnorml', 'Norm']
+            'KitchenQual': ['Ex', 'Gd', 'TA', 'Fa'],
+            'SaleCondition': ['Normal', 'Normal', 'Abnorml', 'Normal']
         })
         encoded = preprocessor.encode_categorical(data_cat, fit=True)
-        assert encoded['quality'].dtype in [np.int64, np.int32, int], "Encoding should convert to numeric"
+        assert pd.api.types.is_integer_dtype(encoded['KitchenQual'])
+        assert encoded['SaleCondition'].equals(data_cat['SaleCondition'])
         print("  ✓ encode_categorical works")
         
         return True

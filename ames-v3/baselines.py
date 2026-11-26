@@ -120,45 +120,26 @@ def init_v1(root=None):
     legacy.configure_v1_imports(source_root)
 
 
-class V1Predictor:
-    """Preserve V1 fold-local categorical encoding, outlier rules and raw-dollar target."""
-
-    def __init__(self, pp, raw_train, filled_train, columns, model):
-        self.encoders = pp.label_encoders
-        self.raw_train = raw_train
-        self.filled_train = filled_train
-        self.columns = columns
-        self.model = model
+class V1Predictor(legacy.TreeFeatures):
+    """XGBoost with the shared retrospective V1 preprocessor."""
 
     def predict(self, frame):
-        if "_ames_v1" not in sys.modules:
-            init_v1()
-        from _ames_v1.data_preprocessing import DataPreprocessor
-        from _ames_v1.feature_engineering import FeatureEngineer
-        pp = DataPreprocessor()
-        pp.label_encoders = self.encoders
-        val = legacy.fill_validation(pp, self.raw_train, frame, self.filled_train)
-        val = pp.encode_categorical(val, fit=False)
-        val = pp.create_dummy_variables(FeatureEngineer().create_new_features(val))
-        val = val.reindex(columns=self.columns, fill_value=0)
-        return np.maximum(self.model.predict(val.astype(float)), 0)
+        if getattr(self, "feature_schema_version", None) != 2:
+            raise ValueError("Stored V1 member predates the corrected features. Refit without --bundle.")
+        return np.maximum(self.model.predict(self.transform(frame)), 0)
 
 
 def fit_v1(X, y):
     if "_ames_v1" not in sys.modules:
         init_v1()
-    from _ames_v1.data_preprocessing import DataPreprocessor
-    from _ames_v1.feature_engineering import FeatureEngineer
     from _ames_v1.models.xgboost_model import XGBoostModel
-    pp = DataPreprocessor()
-    filled = pp.fill_missing_values(X)
-    retained = pp.remove_outliers(filled.assign(SalePrice=y), target_col="SalePrice")
-    target = retained.pop("SalePrice")
-    features = pp.encode_categorical(retained, fit=True)
-    features = pp.create_dummy_variables(FeatureEngineer().create_new_features(features))
+    predictor = V1Predictor()
+    features, target = predictor.fit_transform(X, y)
+    predictor.feature_schema_version = 2
     model = XGBoostModel(params=dict(XGBoostModel().params, n_jobs=1))
-    model.train(features.astype(float), target, verbose=False)
-    return V1Predictor(pp, X, filled, features.columns, model.model)
+    model.train(features, target, verbose=False)
+    predictor.model = model.model
+    return predictor
 
 
 def v1_oof(X, y, splits):

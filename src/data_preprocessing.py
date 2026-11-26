@@ -222,7 +222,7 @@ class DataPreprocessor:
                 'ExterQual', 'ExterCond', 'HeatingQC', 'PoolQC', 'KitchenQual',
                 'BsmtFinType1', 'BsmtFinType2', 'Functional', 'Fence', 'BsmtExposure',
                 'GarageFinish', 'LandSlope', 'LotShape', 'PavedDrive', 'Street',
-                'Alley', 'CentralAir', 'MSSubClass', 'OverallCond', 'YrSold', 'MoSold'
+                'Alley', 'CentralAir', 'MSSubClass'
             ]
         
         for col_name in label_encoder_cols:

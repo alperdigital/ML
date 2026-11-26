@@ -89,9 +89,9 @@ class FeatureEngineer:
             data['GarageScore'] = data['GarageCars'].fillna(0) * data['GarageArea'].fillna(0)
             features_created += 1
         
-        # Total rooms
-        if 'TotRmsAbvGrd' in data.columns and 'BedroomAbvGr' in data.columns:
-            data['TotalRooms'] = data['TotRmsAbvGrd'].fillna(0) + data['BedroomAbvGr'].fillna(0)
+        # The Ames total already includes bedrooms and excludes bathrooms.
+        if 'TotRmsAbvGrd' in data.columns:
+            data['TotalRooms'] = data['TotRmsAbvGrd']
             features_created += 1
         
         print(f"Yeni özellikler oluşturuldu: {features_created} özellik. Toplam özellik sayısı: {data.shape[1]}")

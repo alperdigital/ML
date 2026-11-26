@@ -1,4 +1,4 @@
-"""Recreate the three published releases' paired predictions on the historical holdout."""
+"""Compare corrected V1, published V2 and frozen V3 on the historical holdout."""
 import json
 import sys
 from pathlib import Path
@@ -15,6 +15,37 @@ from compare_v1_v2 import configure_v1_imports, metrics, split_fingerprint, v1_p
 
 def read_json(path):
     return json.loads((ROOT / path).read_text())
+
+
+def paired_intervals(actual, previous, current, draws=20_000, seed=42):
+    """Resample the same houses for both models; fitting uncertainty is excluded."""
+    y = np.asarray(actual)
+    estimates = np.column_stack([previous, current])
+    squared_log = (np.log1p(estimates) - np.log1p(y[:, None])) ** 2
+    absolute = np.abs(estimates - y[:, None])
+    rng = np.random.default_rng(seed)
+    relative, dollars = [], []
+    for start in range(0, draws, 256):
+        indices = rng.integers(len(y), size=(min(256, draws - start), len(y)))
+        rmsle = np.sqrt(squared_log[indices].mean(axis=1))
+        mae = absolute[indices].mean(axis=1)
+        relative.extend(100 * (1 - rmsle[:, 1] / rmsle[:, 0]))
+        dollars.extend(mae[:, 0] - mae[:, 1])
+    return {
+        "rmsle_gain_pct_ci95": np.percentile(relative, [2.5, 97.5]).tolist(),
+        "mae_reduction_usd_ci95": np.percentile(dollars, [2.5, 97.5]).tolist(),
+        "draws": draws, "seed": seed, "unit": "house", "conditional_on_fixed_predictions": True,
+    }
+
+
+def published_v2_config(published):
+    """Read the original five-fold release winner without using holdout scores."""
+    if published["folds"] != 5 or published["trials"] != 20 or published["dataset_sha256"] != DATA_SHA:
+        raise ValueError("Expected the published five-fold, 20-trial V2 experiment")
+    best = min(published["candidates"], key=lambda row: row["cv_rmsle"])
+    if any(best[key] != published["selected"][key] for key in ("model", "engineered")):
+        raise ValueError("V2 configuration differs from its published selection")
+    return {key: best[key] for key in ("model", "params", "engineered")}
 
 
 def run():
@@ -50,13 +81,11 @@ def run():
 
     # The original five-fold V2 release and the nested V3 experiment tuned V2
     # separately. Use the former's winning configuration to compare releases.
-    v2 = min(published["candidates"], key=lambda row: row["cv_rmsle"])
-    if (v2["model"], v2["engineered"]) != (published["selected"]["model"], published["selected"]["engineered"]):
-        raise ValueError("V2 configuration differs from its published selection")
+    v2 = published_v2_config(published)
     houses["v2"], v2_train_rows, _ = v2_predict(v2, training, y, X)
-    if frozen["recipe"] != "best_new" or frozen["best_new"] != "tabpfn_v2":
-        raise ValueError("Unexpected frozen V3 recipe")
-    np.testing.assert_array_equal(final.v3, final.cand_tabpfn_v2)
+    recipe = frozen["recipe"]
+    recipe_column = "cand_" + frozen["best_new"] if recipe == "best_new" else recipe
+    np.testing.assert_array_equal(final.v3, final[recipe_column])
     houses["v3"] = final.v3.to_numpy()
 
     targets = {
@@ -79,16 +108,19 @@ def run():
             "mae_usd": b["mae"] - a["mae"],
             "mae_pct": 100 * (b["mae"] / a["mae"] - 1),
             "r2_points": b["r2"] - a["r2"],
+            "paired_interval": paired_intervals(houses.SalePrice, houses[old], houses[new]),
         }
     audit = {
         "dataset_sha256": DATA_SHA, "ordered_split_sha256": ids, "seed": 42,
         "development_rows": len(dev), "holdout_rows": len(test),
         "effective_training_rows": {"v1": v1_train_rows, "v2": v2_train_rows, "v3": len(dev)},
-        "models": {"v1": v1, "v2": v2["model"], "v3": frozen["best_new"]},
+        "models": {"v1": v1, "v2": v2["model"],
+                   "v3": frozen["best_new"] if recipe == "best_new" else recipe},
         "v2_published_params": v2["params"], "metrics": scores, "differences": differences,
-        "source_commit": {"v1": comparison["v1_source_commit"],
-                          "v2": "7473f585685b15cf886daa32041f8f293e887d1e",
-                          "v3": "2fbce4aed48813bf58f0e00b63729f86e3d209ef"},
+        "v1_historical_source_commit": comparison["v1_source_commit"],
+        "v1_revision": comparison["v1_revision"],
+        "v2_published_commit": "7473f585685b15cf886daa32041f8f293e887d1e",
+        "v3_protocol": "protocol.md", "v3_frozen_recipe": recipe,
     }
     houses.to_csv(predictions_dir / "three-version-holdout.csv", index=False)
     (predictions_dir / "three-version-holdout.json").write_text(json.dumps(audit, indent=2, allow_nan=False) + "\n")

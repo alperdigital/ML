@@ -12,13 +12,12 @@ This script demonstrates how to:
 import sys
 import os
 import pandas as pd
-import numpy as np
+from sklearn.model_selection import train_test_split
 
 # Add parent directory to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.data_preprocessing import DataPreprocessor
-from src.feature_engineering import FeatureEngineer
+from src.tree_features import TreeFeatures
 from src.models.xgboost_model import XGBoostModel
 from src.utils.metrics import print_metrics
 from src.utils.visualization import plot_residuals, plot_feature_importance
@@ -48,68 +47,16 @@ def main():
     print(f"✓ Training data: {train.shape}")
     print(f"✓ Test data: {test.shape}")
     
-    # Preprocessing
-    print("\n[2/5] Preprocessing data...")
-    preprocessor = DataPreprocessor()
-    
-    # Separate target
-    if 'SalePrice' not in train.columns:
-        raise ValueError("'SalePrice' column not found in training data")
-    y_train = train['SalePrice']
-    X_train = train.drop('SalePrice', axis=1)
-    
-    # Save test Id column before preprocessing (might be dropped)
-    test_ids_original = None
-    if 'Id' in test.columns:
-        test_ids_original = test['Id'].copy()
-    
-    # Fill missing values
-    X_train = preprocessor.fill_missing_values(X_train)
-    X_test = preprocessor.fill_missing_values(test)
-    
-    # Remove outliers
-    # Ensure indices align before concatenation
-    X_train = X_train.reset_index(drop=True)
-    y_train = y_train.reset_index(drop=True)
-    train_with_target = pd.concat([X_train, y_train], axis=1)
-    train_with_target = preprocessor.remove_outliers(train_with_target, target_col='SalePrice')
-    
-    if 'SalePrice' not in train_with_target.columns:
-        raise ValueError("'SalePrice' column missing after outlier removal")
-    
-    y_train = train_with_target['SalePrice']
-    X_train = train_with_target.drop('SalePrice', axis=1)
-    
-    # Encode categorical
-    X_train = preprocessor.encode_categorical(X_train, fit=True)
-    X_test = preprocessor.encode_categorical(X_test, fit=False)
-    
-    print("✓ Preprocessing completed")
-    
-    # Feature engineering
-    print("\n[3/5] Feature engineering...")
-    fe = FeatureEngineer()
-    X_train = fe.create_new_features(X_train)
-    X_test = fe.create_new_features(X_test)
-    
-    # Align columns
-    common_cols = X_train.columns.intersection(X_test.columns)
-    if len(common_cols) == 0:
-        raise ValueError("No common columns between X_train and X_test after feature engineering!")
-    
-    X_train = X_train[common_cols]
-    X_test = X_test[common_cols]
-    
-    print(f"✓ Feature engineering completed. Common columns: {len(common_cols)}")
-    
-    # Split data for evaluation
-    print("\n[4/5] Splitting data for evaluation...")
-    from sklearn.model_selection import train_test_split
-    X_train_split, X_val, y_train_split, y_val = train_test_split(
-        X_train, y_train, test_size=0.2, random_state=42
+    # Hold out raw sales before fitting imputation, category encoders or outlier rules.
+    prices = train.pop("SalePrice")
+    X_fit, raw_val, y_fit, y_val = train_test_split(
+        train, prices, test_size=0.2, random_state=42
     )
-    print(f"✓ Training set: {X_train_split.shape}, Validation set: {X_val.shape}")
-    
+    preparation = TreeFeatures()
+    X_train_split, y_train_split = preparation.fit_transform(X_fit, y_fit)
+    X_val = preparation.transform(raw_val)
+    print(f"✓ Training set: {X_train_split.shape}, validation set: {X_val.shape}")
+
     # Train model
     print("\nTraining XGBoost model...")
     model = XGBoostModel()
@@ -137,28 +84,14 @@ def main():
     plot_feature_importance(model, feature_names, top_n=20,
                           save_path='results/visualizations/xgboost_feature_importance.png')
     
-    # Save model
+    # Use all labeled sales for the submission once holdout scoring is complete.
+    submission_features = TreeFeatures()
+    all_features, all_prices = submission_features.fit_transform(train, prices)
+    model.train(all_features, all_prices, verbose=False)
     model.save_model('results/models/xgboost_model.json')
-    
-    # Make predictions on test set
-    print("\nMaking predictions on test set...")
-    test_predictions = model.predict(X_test)
-    
-    # Create submission file
-    # Handle Id column - might be in original test or need to be created
-    # Use len(test_predictions) to ensure IDs match predictions length
-    num_predictions = len(test_predictions)
-    if test_ids_original is not None and len(test_ids_original) == num_predictions:
-        test_ids = test_ids_original
-    else:
-        # If Id was dropped or length mismatch, create sequential IDs starting from 1461
-        test_ids = pd.Series(range(1461, 1461 + num_predictions), name='Id')
-    
-    submission = pd.DataFrame({
-        'Id': test_ids,
-        'SalePrice': test_predictions
-    })
-    
+    test_predictions = model.predict(submission_features.transform(test))
+    submission = pd.DataFrame({"Id": test["Id"], "SalePrice": test_predictions})
+
     # Create directory if it doesn't exist
     os.makedirs('results/submissions', exist_ok=True)
     submission.to_csv('results/submissions/xgboost_submission.csv', index=False)

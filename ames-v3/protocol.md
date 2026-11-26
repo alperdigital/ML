@@ -1,6 +1,6 @@
 # Ames V3 experiment protocol
 
-Registered before any V3 development or holdout scores. The raw CSV SHA-256 is 1e18addf81e5e4d347cc17ee6075bbe4a42b7fa26b9e5b063e8f692a5f929d41. V2 source is 7473f585685b15cf886daa32041f8f293e887d1e. Reference reproduction uses V2's historical protocol separately.
+The original protocol below was registered before any V3 development or holdout scores. The correction at the end was specified after an audit of the published results. The raw CSV SHA-256 is 1e18addf81e5e4d347cc17ee6075bbe4a42b7fa26b9e5b063e8f692a5f929d41. V2 source is 7473f585685b15cf886daa32041f8f293e887d1e. Reference reproduction uses V2's historical protocol separately.
 
 ## Splits and budget
 
@@ -17,3 +17,9 @@ Find the best new candidate by mean inner-fold RMSLE. Compare three single model
 ## Decision and diagnostics
 
 Pool the paired outer predictions across both repeats. Promote V3 if relative RMSLE decreases by at least 2% and relative dollar MAE increases by less than 1% vs the nested V2 procedure. For a conditional 95% interval on the RMSLE gain, resample properties with replacement 5,000 times keeping their two repeat predictions together, seed 2603. Also report R² and MAE, direction of residuals for the blend members, contributions of prespecified ablations, error by year, price quartile and neighborhood (at least 20 distinct properties for neighborhood estimates). The temporal stress test and historical holdout are descriptive. Neither influences promotion. The data cover Ames sales from 2006–2010.
+
+## Post-publication correction
+
+The first implementation both fitted and scored the convex blend's weights on the same inner out-of-fold predictions. The corrected experiment splits each inner validation fold into two shuffled halves (two-fold KFold, seed 42). For the candidate member configurations in that search, the fitted base models have seen neither half. Fit the weights on one half's predictions and labels, predict the other half, then reverse the roles. Score those cross-fitted blend predictions using the same mean inner-fold RMSLE as the single models. After model selection, fit the deployment weights on all inner out-of-fold member predictions. Hyperparameter and candidate selection still use the inner folds. The outer evaluations measure the combined selection procedure.
+
+The V1 XGBoost member now computes ages using calendar years and uses the recorded total room count. Refit this member and rerun blend scoring, recipe selection, and evaluation in all ten outer folds, the 2010 split and the final development split. The dataset, split seeds, V2 searches, fixed V3 model specifications and promotion thresholds are preserved. Predictions for the independent V2 and fixed V3 candidates can therefore be reused for their original house IDs. The corrected results are a retrospective reanalysis of previously observed sales.

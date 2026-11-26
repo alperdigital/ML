@@ -1,4 +1,4 @@
-"""Run the preregistered Ames comparison and freeze a deployable development fit."""
+"""Run the corrected nested Ames comparison and freeze the development fit."""
 import argparse
 import hashlib
 import json
@@ -10,6 +10,7 @@ from pathlib import Path
 import joblib
 import numpy as np
 import pandas as pd
+from sklearn.model_selection import KFold
 
 from base_stage import build
 from baselines import fit_v1, fit_v2, v1_oof
@@ -19,6 +20,7 @@ from recipe_cache import cached_oof
 
 MEMBERS = ["v1_xgb", "v2_cat", "best_new"]
 REPORT_COLS = ["Id", "SalePrice", "YrSold", "Neighborhood"]
+BLEND_SPLIT_SEED = 42
 
 
 def write_json(path, value):
@@ -39,6 +41,24 @@ def choose_model(cost):
     return single if cost[single] <= cost[blend] + .0005 else blend
 
 
+def crossfit_blend(y, matrix, splits):
+    """Score weight learning on other houses from the same base-model validation fold."""
+    targets = np.asarray(y)
+    prices = np.full(len(targets), np.nan)
+    audit = []
+    for fold, (_, validation) in enumerate(splits):
+        two_halves = KFold(2, shuffle=True, random_state=BLEND_SPLIT_SEED)
+        for half, (fit_pos, score_pos) in enumerate(two_halves.split(validation)):
+            calibration, scoring = validation[fit_pos], validation[score_pos]
+            weights = blend_weights(targets[calibration], matrix[calibration])
+            prices[scoring] = blend_predict(matrix[scoring], weights)
+            audit.append(dict(inner_fold=fold, half=half, fit_rows=len(calibration),
+                              scored_rows=len(scoring), weights=weights.tolist()))
+    if not np.isfinite(prices).all():
+        raise ValueError("Every inner validation row requires a held-out blend prediction")
+    return prices, audit
+
+
 def select_and_fit(train, search, work=None):
     if train.Id.tolist() != search["train_ids"]:
         raise ValueError("Cached V2 run uses different training house IDs")
@@ -57,11 +77,12 @@ def select_and_fit(train, search, work=None):
     oof = {"v1_xgb": v1_oof(X, y, splits), "v2_cat": search["oof"][cat],
            "best_new": new_oof[best], "v2": search["oof"][winner]}
     matrix = np.column_stack([oof[key] for key in MEMBERS])
-    weights = np.asarray(blend_weights(y, matrix))
     oof["equal_blend"] = blend_predict(matrix, [1/3]*3)
-    oof["weighted_blend"] = blend_predict(matrix, weights)
+    oof["weighted_blend"], weight_folds = crossfit_blend(y, matrix, splits)
     costs = {key: mean_fold_rmsle(y, values, splits) for key, values in oof.items()}
     recipe = choose_model(costs)
+    # Outer and deployment predictions may use all of this partition's training OOF.
+    weights = blend_weights(y, matrix)
 
     baseline_start = time.monotonic()
     fitted_v2 = fit_v2(search["configs"][winner], X, y)
@@ -72,6 +93,7 @@ def select_and_fit(train, search, work=None):
     models["best_new"] = models["cand_"+best]
     audit = {"v2": winner, "v2_cat": cat, "best_new": best, "recipe": recipe,
              "specs": specs, "weights": weights.tolist(), "member_order": MEMBERS,
+             "weight_selection": {"seed": BLEND_SPLIT_SEED, "folds": weight_folds},
              "inner_rmsle": costs, "new_inner_rmsle": candidate_cost, "candidate_oof_seconds": {k:v[1] for k,v in cached.items()}, "v2_configs": search["configs"],
              "v2_search": search["audit"], "v2_search_seconds": search["elapsed_seconds"],
              "v2_refit_seconds": baseline_refit_seconds,
@@ -103,7 +125,7 @@ def evaluate(data, name, work, out):
     pieces.mkdir(parents=True, exist_ok=True)
     if name == "final":
         # Freeze the recipe to disk before opening the historical comparison.
-        write_json(dest/"frozen-final.json", {k:audit[k] for k in ("v2","v2_cat","best_new","recipe","weights","member_order","inner_rmsle","specs","v2_configs")})
+        write_json(dest/"frozen-final.json", {k:audit[k] for k in ("v2","v2_cat","best_new","recipe","weights","member_order","inner_rmsle","specs","v2_configs","weight_selection")})
         inputs = df.drop(columns="SalePrice")
         bundle = {"models":models, "audit":audit, "columns":inputs.columns.tolist(),
                   "dtypes": inputs.dtypes.astype(str).to_dict()}
@@ -143,7 +165,7 @@ def run(data, work, out, jobs):
     pieces = Path(work)/"evaluations"
     outer = pd.concat([pd.read_csv(pieces/f"{name}.csv") for name in names if name != "temporal"],ignore_index=True)
     temporal = pd.read_csv(dest/"temporal.csv")
-    # No human or program uses outer outcomes to alter the registered recipe.
+    # Score the frozen training procedure before reading its historical predictions.
     evaluate(data, "final", work, out)
     holdout = pd.read_csv(dest/"final.csv")
     summary = summarize(outer, temporal, holdout)
