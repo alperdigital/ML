@@ -45,7 +45,7 @@
           <div><span>V3</span><strong></strong><small></small></div>
         </div>
       </div>
-      <a class="source" href="https://github.com/alperdigital/ML/blob/v3/ames-v3/results/three-version-holdout.csv">292 evin tahminlerini incele</a>
+      <a class="source" href="https://github.com/alperdigital/ames-housing-price-prediction/blob/v3/ames-v3/results/three-version-holdout.csv">292 evin tahminlerini incele</a>
     </section>`;
   class AmesCaseStudy extends HTMLElement {
     connectedCallback() {

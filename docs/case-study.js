@@ -34,7 +34,7 @@
         <div><label for="house">Satış kaydı seç</label><select id="house" disabled><option>Kayıtlar yükleniyor…</option></select></div>
       </div>
       <details hidden><summary>Bu evin arşivdeki V2 tahminini yeniden üret</summary>
-        <p>Bu fiyatı üreten <a href="https://github.com/alperdigital/ML/archive/ad18630fc5a074538049aa80a4d19203d7d0d211.zip">proje sürümünü indir</a>, arşivi aç ve <a href="https://github.com/alperdigital/ML/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/README.md">kurulum adımlarını</a> izledikten sonra aşağıdaki komutu arşivin kök klasöründe çalıştır.</p>
+        <p>Bu fiyatı üreten <a href="https://github.com/alperdigital/ames-housing-price-prediction/archive/ad18630fc5a074538049aa80a4d19203d7d0d211.zip">proje sürümünü indir</a>, arşivi aç ve <a href="https://github.com/alperdigital/ames-housing-price-prediction/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/README.md">kurulum adımlarını</a> izledikten sonra aşağıdaki komutu arşivin kök klasöründe çalıştır.</p>
         <code></code>
       </details>
       <div class="result" aria-live="polite" aria-atomic="true" hidden>
@@ -45,7 +45,7 @@
           <div><span>V3</span><strong></strong><small></small></div>
         </div>
       </div>
-      <a class="source" href="https://github.com/alperdigital/ML/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/results/three-version-holdout.csv">292 evin tahminlerini incele</a>
+      <a class="source" href="https://github.com/alperdigital/ames-housing-price-prediction/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/results/three-version-holdout.csv">292 evin tahminlerini incele</a>
     </section>`;
   class AmesCaseStudy extends HTMLElement {
     connectedCallback() {

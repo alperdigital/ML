@@ -5,10 +5,10 @@
   <meta name="theme-color" content="#f8f8f5">
   <meta name="description" content="Abdullah Alper Baş’ın Ames Housing vaka çalışması. Aynı 292 satışta üç nesil fiyat tahmin modelini sonuçları, deneyleri ve kararlarıyla karşılaştırın.">
   <meta property="og:title" content="Ames Housing · Bir evin fiyatı. Üç farklı bakış."><meta property="og:description" content="Abdullah Alper Baş’ın üç sürümlük makine öğrenmesi vaka çalışması."><meta property="og:type" content="website">
-  <link rel="canonical" href="https://alperdigital.github.io/ML/">
-  <meta property="og:url" content="https://alperdigital.github.io/ML/">
+  <link rel="canonical" href="https://alperdigital.github.io/ames-housing-price-prediction/">
+  <meta property="og:url" content="https://alperdigital.github.io/ames-housing-price-prediction/">
   <meta property="og:locale" content="tr_TR">
-  <meta property="og:image" content="https://alperdigital.github.io/ML/portfolio-preview.png">
+  <meta property="og:image" content="https://alperdigital.github.io/ames-housing-price-prediction/portfolio-preview.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="Ames Housing. Bir evin fiyatı, üç farklı bakış. Abdullah Alper Baş’ın portföyü ve bir Ames evinin mimari çizimi.">
@@ -23,9 +23,9 @@
   <header class="site-head"><div class="wrap head-inner">
     <a class="brand" href="#icerik" aria-label="Ames Housing, başlangıç"><img src="./mark.svg" width="30" height="30" alt=""> Ames<span>Housing</span></a>
     <nav aria-label="Ana menü"><a href="#gelisim">Gelişim</a><a href="#sonuclar">Sonuçlar</a><a href="#surec">Süreç</a></nav>
-    <a class="repo" href="https://github.com/alperdigital/ML/tree/ad18630fc5a074538049aa80a4d19203d7d0d211">GitHub <span aria-hidden="true">↗</span></a>
+    <a class="repo" href="https://github.com/alperdigital/ames-housing-price-prediction/tree/ad18630fc5a074538049aa80a4d19203d7d0d211">GitHub <span aria-hidden="true">↗</span></a>
   </div></header>
-  <aside class="archive-note" aria-label="Karşılaştırmanın sürümü"><p class="wrap">Bu sayfa, aynı 292 evde tamamlanan son üçlü karşılaştırmayı gösteriyor. Yeni deneyler duraklatıldı. <a href="https://github.com/alperdigital/ML/blob/v3/DEVAM.md">Çalışmanın güncel durumu <span aria-hidden="true">↗</span></a></p></aside>
+  <aside class="archive-note" aria-label="Karşılaştırmanın sürümü"><p class="wrap">Bu sayfa, aynı 292 evde tamamlanan son üçlü karşılaştırmayı gösteriyor. Yeni deneyler duraklatıldı. <a href="https://github.com/alperdigital/ames-housing-price-prediction/blob/v3/DEVAM.md">Çalışmanın güncel durumu <span aria-hidden="true">↗</span></a></p></aside>
   <main id="icerik">
     <section class="wrap hero" aria-labelledby="hero-title">
       <div class="hero-copy"><p class="overline"><span class="dot"></span> Ames, Iowa <span class="slash">/</span> 2006–2010</p>
@@ -58,17 +58,17 @@
         <article class="stage-panel" id="v1-detail"><p class="overline">V1 <span class="slash">/</span> LightGBM</p><h3>Eksik bir kayıtla<br>tahmin yapılır mı?</h3>
           <div class="story"><p>Ames’te satılmış evlerin bazı özellikleri boştu. İlk sürüm, bu kayıtları işleyip ağaç tabanlı modelleri denedi. Sonraki fikirleri ölçmek için bir başlangıç noktası sağladı.</p><p class="finding"><b>Öğrenilen</b> Evin yaşı ve oda sayısı gibi basit görünen alanların bile gerçek bir kayıtla sınanması gerekiyor.</p></div>
           <div class="technical"><p>Tabloda ilk sürümün düzeltilmiş ağaç modellerini ölçtük. Evleri önce ayırdık, gerçek satış yılıyla yaşı hesapladık ve yatak odalarının iki kez sayılmasını giderdik. Beş katlı doğrulama LightGBM’yi seçti.</p><p class="finding"><b>Ölçüm</b> 292 evde RMSLE 0,13601 ve MAE 15.047,65 $.</p></div>
-          <a class="text-link" href="https://github.com/alperdigital/ML/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v2/compare_v1_v2.py">V1 değerlendirme kodu <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://github.com/alperdigital/ames-housing-price-prediction/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v2/compare_v1_v2.py">V1 değerlendirme kodu <span aria-hidden="true">↗</span></a>
         </article>
         <article class="stage-panel" id="v2-detail"><p class="overline">V2 <span class="slash">/</span> CatBoost</p><h3>Modelleri nasıl adil<br>karşılaştırırız?</h3>
           <div class="story"><p>Dört model aynı eğitim düzeninden geçti. Her denemede fiyatı saklanan evlerin bilgisi ayrı tutuldu. Böylece sonuçların ne kadarının model tercihinden geldiği daha iyi görüldü.</p><p class="finding"><b>Öğrenilen</b> Ev başına ortalama dolar hatası V1’e göre 54,15 dolar azaldı. Bazı pahalı evlerde sapma büyüdüğü için R² geriledi.</p></div>
           <div class="technical"><p>XGBoost, LightGBM, CatBoost ve Ridge için Optuna model başına 20 deneme yaptı. Her katın dönüşümleri yalnızca eğitim evlerinden öğrenildi. Beş katlı deneyde seçilen CatBoost, sitedeki ve V2 tahmin komutundaki fiyatı üretir.</p><p class="finding"><b>Ölçüm</b> V1’e göre RMSLE %9,23 azaldı. Dolar ölçeğinde R² 0,02623 puan düştü.</p></div>
-          <a class="text-link" href="https://github.com/alperdigital/ML/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v2/README.md">V2 deney raporu <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://github.com/alperdigital/ames-housing-price-prediction/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v2/README.md">V2 deney raporu <span aria-hidden="true">↗</span></a>
         </article>
         <article class="stage-panel" id="v3-detail"><p class="overline">V3 <span class="slash">/</span> TabPFNv2</p><h3>İyileşmeye ne kadar<br>güvenebiliriz?</h3>
           <div class="story"><p>Başarı ölçütü deneyden önce yazıldı. Modeller farklı eğitim bölmelerinde tekrar sınandı. Tek tek evlerdeki sapmalar, mahalleler ve daha sonraki bir satış yılı ayrıca incelendi.</p><p class="finding"><b>Öğrenilen</b> Son seçim tek bir modeldi. Bu sürüm, 292 evde üç ölçütte de en iyi sonucu verdi.</p></div>
           <div class="technical"><p>Her iç doğrulama katında karışım ağırlıkları bir yarıda öğrenildi, diğerinde ölçüldü. On dış bölümün dokuzunda ve son seçimde tek TabPFNv2 seçildi. Bu model özgün sütunları kullanır. Özel eksik değer kurallarını ve türetilmiş özellikleri CatBoost ile Ridge adaylarında sınadık.</p><p class="finding"><b>Ölçüm</b> Yayımlanmış V2’ye göre RMSLE %4,34 ve ev başına ortalama mutlak hata 2.229,10 $ azaldı.</p></div>
-          <a class="text-link" href="https://github.com/alperdigital/ML/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/protocol.md">V3 deney protokolü <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="https://github.com/alperdigital/ames-housing-price-prediction/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/protocol.md">V3 deney protokolü <span aria-hidden="true">↗</span></a>
         </article>
       </div></div>
     </section>
@@ -78,11 +78,11 @@
       <div class="table-shell"><table><caption class="sr-only">Aynı 292 evde üç sürümün model, RMSLE, MAE ve R² sonuçları</caption><thead><tr><th scope="col">Sürüm</th><th scope="col">RMSLE <span>↓</span></th><th scope="col">MAE <span>↓</span></th><th scope="col">R² <span>↑</span></th></tr></thead>
         <tbody><tr><th scope="row"><b>V1</b><small>Düzeltilmiş LightGBM</small></th><td>0,13601</td><td>15.047,65 $</td><td>0,92592</td></tr><tr><th scope="row"><b>V2</b><small>CatBoost</small></th><td>0,12346</td><td>14.993,51 $</td><td>0,89969</td></tr><tr class="best"><th scope="row"><b>V3</b><small>TabPFNv2</small></th><td>0,11810</td><td>12.764,41 $</td><td>0,94024</td></tr></tbody></table></div>
       <div class="reading-note"><p><strong>Tabloyu okumak için</strong> RMSLE, fiyatın ölçeğine göre hatayı, MAE dolar cinsinden ortalama mutlak hatayı ölçer. İkisinde de düşük değer daha iyidir. R², fiyatlardaki değişimin ne kadarının açıklanabildiğini gösterir. Yüksek değer daha iyidir.</p><p><strong>Karşılaştırmanın sınırı</strong> Bu 292 satış daha önce de incelendi. Evleri 20.000 kez eşleştirerek yeniden örneklediğimizde V3’ün V2’ye göre ortalama dolar hatasındaki azalmanın %95 aralığı 969–3.685 dolar çıktı. RMSLE kazancının aralığı −%3,96 ile +%14,03 arasında. Bu ölçütte farkın yönü yeni bir örneklemde değişebilir.</p></div>
-      <a class="text-link" href="https://github.com/alperdigital/ML/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/results/three-version-holdout.json">Hesaplama kaydını aç <span aria-hidden="true">↗</span></a>
+      <a class="text-link" href="https://github.com/alperdigital/ames-housing-price-prediction/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/results/three-version-holdout.json">Hesaplama kaydını aç <span aria-hidden="true">↗</span></a>
     </div></section>
     <div class="wrap"><ames-case-study></ames-case-study></div>
     <section class="wrap section process" id="surec" aria-labelledby="process-title"><p class="overline"><i></i> İnsan ve yapay zekâ</p><div class="process-grid"><div><h2 id="process-title">Bir fikri<br><em>sınamayı öğrenmek.</em></h2><p class="process-intro">Bu projeye üç kez döndüm. Yapay zekâ araçlarıyla kodu geliştirirken her sürümde hangi kararı neden aldığımı ve işe yarayıp yaramadığını kaydettim.</p></div><ol class="decisions"><li><h3>Soruyu seçmek</h3><p>Başlangıçta amaç eksik veriden fiyat tahminiydi. Sonraki istekler adil bir karşılaştırmayı, en sonunda da iyileşmenin kanıtını hedefledi.</p></li><li><h3>Deneyi kurmak</h3><p>Yapay zekâ destekli kodlama ile yeni sürümler ayrı dallarda geliştirildi. Veri hazırlama, model denemeleri ve testler tekrarlanabilir bir deney düzenine taşındı.</p></li><li><h3>İddiayı denetlenebilir kılmak</h3><p>Kod incelemesi, aynı “V2” adının iki farklı modeli çağırdığını ortaya çıkardı. Sürümleri ayırdım. Artık isteyen herkes bir ev seçip aynı tahmini komutla sentine kadar yeniden üretebilir.</p></li></ol></div>
-      <div class="source-row"><a class="button" href="https://github.com/alperdigital/ML/tree/ad18630fc5a074538049aa80a4d19203d7d0d211">GitHub’da projeyi incele <span aria-hidden="true">↗</span></a><a class="text-link" href="https://github.com/alperdigital/ML/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/README.md">Teknik raporu oku <span aria-hidden="true">↗</span></a></div>
+      <div class="source-row"><a class="button" href="https://github.com/alperdigital/ames-housing-price-prediction/tree/ad18630fc5a074538049aa80a4d19203d7d0d211">GitHub’da projeyi incele <span aria-hidden="true">↗</span></a><a class="text-link" href="https://github.com/alperdigital/ames-housing-price-prediction/blob/ad18630fc5a074538049aa80a4d19203d7d0d211/ames-v3/README.md">Teknik raporu oku <span aria-hidden="true">↗</span></a></div>
     </section>
   </main>
   <footer><div class="wrap foot"><span class="brand"><img src="./mark.svg" width="25" height="25" alt=""> Ames<span>Housing</span></span><span>Abdullah Alper Baş</span><a href="#icerik">Başa dön ↑</a></div></footer>

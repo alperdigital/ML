@@ -1,6 +1,6 @@
 # Ames Housing V2
 
-V2 asks how well four model families predict the same sales when they receive identical training folds, feature definitions and search budgets. This page reports the corrected V2 procedure evaluated on the `v3` branch. The [archived V2 branch](https://github.com/alperdigital/ML/tree/7473f585685b15cf886daa32041f8f293e887d1e) preserves the original result. The [checkpoint comparison](../README.md) and the current V2 command use the corrected five-fold winner. The live portfolio displays the preceding completed three-version release while V3 is paused.
+V2 asks how well four model families predict the same sales when they receive identical training folds, feature definitions and search budgets. This page reports the corrected V2 procedure evaluated on the `v3` branch. The [archived V2 branch](https://github.com/alperdigital/ames-housing-price-prediction/tree/7473f585685b15cf886daa32041f8f293e887d1e) preserves the original result. The [checkpoint comparison](../README.md) and the current V2 command use the corrected five-fold winner. The live portfolio displays the preceding completed three-version release while V3 is paused.
 
 ## From the CSV to a prediction
 
@@ -45,7 +45,7 @@ The corrected V1 trees retain their original hyperparameters and raw-dollar targ
 | V2 | LightGBM | 0.12474 | 0.13476 | 16,114.17 | 0.88072 |
 | V2 | CatBoost **(CV winner)** | 0.11951 | 0.12451 | 15,042.20 | 0.90390 |
 
-Moving from V1 LightGBM to V2 CatBoost, holdout RMSLE changed by **-8.98%**, MAE by **-182.81 USD** and R² by **-0.01719**. The comparison changes multiple decisions together, including the training target, preprocessing, search budget and selected family. It measures the complete procedures on these historical sales. V1’s original hyperparameters may reflect earlier work with these prices. V1’s KAN notebook remained outside its executable two-tree comparison. [Original V1 source](https://github.com/alperdigital/ML/tree/a1cf99b304c604125019a10b587613a5d3b1ee5c) · [Matched metric summary, parameters and split fingerprints](v1-v2-comparison.json)
+Moving from V1 LightGBM to V2 CatBoost, holdout RMSLE changed by **-8.98%**, MAE by **-182.81 USD** and R² by **-0.01719**. The comparison changes multiple decisions together, including the training target, preprocessing, search budget and selected family. It measures the complete procedures on these historical sales. V1’s original hyperparameters may reflect earlier work with these prices. V1’s KAN notebook remained outside its executable two-tree comparison. [Original V1 source](https://github.com/alperdigital/ames-housing-price-prediction/tree/a1cf99b304c604125019a10b587613a5d3b1ee5c) · [Matched metric summary, parameters and split fingerprints](v1-v2-comparison.json)
 
 ## Reproduce the measurements
 
