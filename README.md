@@ -13,8 +13,8 @@
 
 **A comprehensive ML pipeline comparing XGBoost, LightGBM, and KAN (Kolmogorov-Arnold Network) for house price prediction**
 
-[![GitHub stars](https://img.shields.io/github/stars/alperdigital/ML.svg?style=social&label=Star)](https://github.com/alperdigital/ML)
-[![GitHub forks](https://img.shields.io/github/forks/alperdigital/ML.svg?style=social&label=Fork)](https://github.com/alperdigital/ML/fork)
+[![GitHub stars](https://img.shields.io/github/stars/alperdigital/ames-housing-price-prediction.svg?style=social&label=Star)](https://github.com/alperdigital/ames-housing-price-prediction)
+[![GitHub forks](https://img.shields.io/github/forks/alperdigital/ames-housing-price-prediction.svg?style=social&label=Fork)](https://github.com/alperdigital/ames-housing-price-prediction/fork)
 
 ---
 
@@ -88,7 +88,7 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/alperdigital/ML.git
+git clone https://github.com/alperdigital/ames-housing-price-prediction.git
 cd ML/proje-main
 
 # 2. Create virtual environment
@@ -540,8 +540,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **Made with ❤️ by Abdullah Alper Baş**
 
-[![GitHub stars](https://img.shields.io/github/stars/alperdigital/ML.svg?style=social&label=Star)](https://github.com/alperdigital/ML)
-[![GitHub forks](https://img.shields.io/github/forks/alperdigital/ML.svg?style=social&label=Fork)](https://github.com/alperdigital/ML/fork)
+[![GitHub stars](https://img.shields.io/github/stars/alperdigital/ames-housing-price-prediction.svg?style=social&label=Star)](https://github.com/alperdigital/ames-housing-price-prediction)
+[![GitHub forks](https://img.shields.io/github/forks/alperdigital/ames-housing-price-prediction.svg?style=social&label=Fork)](https://github.com/alperdigital/ames-housing-price-prediction/fork)
 
 ---
 
