@@ -13,8 +13,8 @@
 
 **A comprehensive ML pipeline comparing XGBoost, LightGBM, and KAN (Kolmogorov-Arnold Network) for house price prediction**
 
-[![GitHub stars](https://img.shields.io/github/stars/alperdigital/ames-housing-price-prediction.svg?style=social&label=Star)](https://github.com/alperdigital/ames-housing-price-prediction)
-[![GitHub forks](https://img.shields.io/github/forks/alperdigital/ames-housing-price-prediction.svg?style=social&label=Fork)](https://github.com/alperdigital/ames-housing-price-prediction/fork)
+[![GitHub stars](https://img.shields.io/github/stars/duayenalper/ames-housing-price-prediction.svg?style=social&label=Star)](https://github.com/duayenalper/ames-housing-price-prediction)
+[![GitHub forks](https://img.shields.io/github/forks/duayenalper/ames-housing-price-prediction.svg?style=social&label=Fork)](https://github.com/duayenalper/ames-housing-price-prediction/fork)
 
 ---
 
@@ -88,7 +88,7 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/alperdigital/ames-housing-price-prediction.git
+git clone https://github.com/duayenalper/ames-housing-price-prediction.git
 cd ML/proje-main
 
 # 2. Create virtual environment
@@ -488,7 +488,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **Abdullah Alper Baş**
 
-- 🌐 **GitHub**: [@alperdigital](https://github.com/alperdigital)
+- 🌐 **GitHub**: [@duayenalper](https://github.com/duayenalper)
 - 💼 **LinkedIn**: [Connect with me](https://linkedin.com/in/yourprofile)
 - 📧 **Email**: [Your Email]
 
@@ -540,8 +540,8 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 **Made with ❤️ by Abdullah Alper Baş**
 
-[![GitHub stars](https://img.shields.io/github/stars/alperdigital/ames-housing-price-prediction.svg?style=social&label=Star)](https://github.com/alperdigital/ames-housing-price-prediction)
-[![GitHub forks](https://img.shields.io/github/forks/alperdigital/ames-housing-price-prediction.svg?style=social&label=Fork)](https://github.com/alperdigital/ames-housing-price-prediction/fork)
+[![GitHub stars](https://img.shields.io/github/stars/duayenalper/ames-housing-price-prediction.svg?style=social&label=Star)](https://github.com/duayenalper/ames-housing-price-prediction)
+[![GitHub forks](https://img.shields.io/github/forks/duayenalper/ames-housing-price-prediction.svg?style=social&label=Fork)](https://github.com/duayenalper/ames-housing-price-prediction/fork)
 
 ---
 

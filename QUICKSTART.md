@@ -11,7 +11,7 @@ Get up and running with the Ames Housing Price Prediction project in 5 minutes!
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/alperdigital/ames-housing-price-prediction.git
+git clone https://github.com/duayenalper/ames-housing-price-prediction.git
 cd ML/proje-main
 
 # 2. Create virtual environment (recommended)

@@ -18,7 +18,7 @@ setup(
     description="Advanced machine learning project for house price prediction",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/alperdigital/ML",
+    url="https://github.com/duayenalper/ames-housing-price-prediction",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",
