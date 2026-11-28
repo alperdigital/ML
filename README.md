@@ -10,4 +10,4 @@
 
 V2’nin V1’e göre RMSLE’si %8,98, ev başına ortalama mutlak hatası 182,81 dolar azaldı. R² ise 0,01719 puan geriledi. Güncel V1 karşılaştırması ham dolar fiyatlarına doğru RMSLE uygulayan düzeltilmiş modeli kullanır. [V1 ve V2 deney raporu](ames-v2/README.md)
 
-[Canlı portföy](https://alperdigital.github.io/ames-housing-price-prediction/) son tamamlanmış üçlü karşılaştırmayı gösteriyor. Bu tablonun kaynak kodu ve dönemin tahmin komutu [son tam yayında](https://github.com/alperdigital/ames-housing-price-prediction/tree/ad18630fc5a074538049aa80a4d19203d7d0d211) incelenebilir. Yeni ayrıntılı anlatım [portföy taslağında](ames-v3/portfolio-draft/) saklanıyor.
+[Canlı portföy](https://duayenalper.github.io/ames-housing-price-prediction/) son tamamlanmış üçlü karşılaştırmayı gösteriyor. Bu tablonun kaynak kodu ve dönemin tahmin komutu [son tam yayında](https://github.com/duayenalper/ames-housing-price-prediction/tree/ad18630fc5a074538049aa80a4d19203d7d0d211) incelenebilir. Yeni ayrıntılı anlatım [portföy taslağında](ames-v3/portfolio-draft/) saklanıyor.
